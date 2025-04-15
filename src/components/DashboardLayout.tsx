@@ -57,7 +57,7 @@ export function DashboardLayout() {
           href: '/dashboard/submit-law'
         },
         {
-          title: 'Leyes Pendientes',
+          title: 'En Sesión',
           icon: <History className="mr-2 h-4 w-4" />,
           variant: 'ghost',
           href: '/dashboard/pending-laws'

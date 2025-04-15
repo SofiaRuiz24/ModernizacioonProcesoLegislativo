@@ -50,7 +50,7 @@ const LoginPage = () => {
         <div className="relative z-20 mt-auto text-black dark:text-white">
           <blockquote className="space-y-2">
             <p className="text-lg">
-              "Esta plataforma ha revolucionado la forma en que gestionamos nuestros proyectos distribuidos."
+              "Esta plataforma ha revolucionado la forma en que gestionamos nuestros proyectos."
             </p>
           </blockquote>
         </div>
@@ -116,19 +116,6 @@ const LoginPage = () => {
                   <span className="w-full border-t border-gray-200 dark:border-gray-800" />
                 </div>
               </div>
-              <Button 
-                variant="outline" 
-                type="button" 
-                disabled={isLoading} 
-                className="w-full hover:bg-gray-100 dark:hover:bg-[#1a1a1a] dark:border-gray-800 dark:text-white"
-                onClick={() => {
-                  // Aquí iría la lógica de autenticación con GitHub
-                  alert('Funcionalidad de GitHub en desarrollo');
-                }}
-              >
-                <Github className="mr-2 h-4 w-4" />
-                GitHub
-              </Button>
             </CardFooter>
           </Card>
         </div>
