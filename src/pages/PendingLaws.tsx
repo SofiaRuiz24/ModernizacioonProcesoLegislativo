@@ -11,27 +11,52 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 
+// Definimos un tipo para los estados posibles
+type LawStatus = 'En revisión' | 'Pendiente' | 'En debate';
+
 // Definición de estados con sus estilos
-const STATUS_STYLES = {
+const STATUS_STYLES: Record<LawStatus, { class: string; icon: JSX.Element }> = {
   'En revisión': { class: 'bg-yellow-100 text-yellow-800', icon: <Clock className="h-4 w-4 mr-1" /> },
   'Pendiente': { class: 'bg-blue-100 text-blue-800', icon: <Clock className="h-4 w-4 mr-1" /> },
   'En debate': { class: 'bg-orange-100 text-orange-800', icon: <Clock className="h-4 w-4 mr-1" /> },
 };
 
+// Definimos el tipo para los votos
+interface Votes {
+  favor: number;
+  contra: number;
+  abstenciones: number;
+}
+
+// Definimos el tipo para las leyes
+interface PendingLaw {
+  id: number;
+  title: string;
+  author: string;
+  party: string;
+  category: string;
+  status: LawStatus;
+  datePresented: string;
+  dateExpiry: string;
+  description: string;
+  documentLink: string;
+  votes: Votes;
+}
+
 // Datos ampliados de leyes pendientes
-const pendingLaws = [
+const pendingLaws: PendingLaw[] = [
   {
     id: 1,
     title: 'Ley de Protección Ambiental',
     author: 'Juan Pérez',
     party: 'Partido Verde',
     category: 'Medio Ambiente',
-    votes: { favor: 12, contra: 8, abstenciones: 5 },
+    status: 'En revisión',
     datePresented: '2025-04-08',
     dateExpiry: '2025-05-08',
-    status: 'En revisión',
     description: 'Esta ley propone medidas para proteger el medio ambiente y promover prácticas sostenibles para la conservación de recursos naturales y la reducción de la contaminación.',
     documentLink: '#',
+    votes: { favor: 12, contra: 8, abstenciones: 5 }
   },
   {
     id: 2,
@@ -39,12 +64,12 @@ const pendingLaws = [
     author: 'María González',
     party: 'Partido Progresista',
     category: 'Educación',
-    votes: { favor: 10, contra: 10, abstenciones: 2 },
+    status: 'Pendiente',
     datePresented: '2025-04-07',
     dateExpiry: '2025-05-07',
-    status: 'Pendiente',
     description: 'Propuesta de reforma integral del sistema educativo para mejorar la calidad de la enseñanza, actualizar los planes de estudio y garantizar el acceso equitativo a la educación.',
     documentLink: '#',
+    votes: { favor: 10, contra: 10, abstenciones: 2 }
   },
   {
     id: 3,
@@ -52,12 +77,12 @@ const pendingLaws = [
     author: 'Carlos Rodríguez',
     party: 'Partido Ciudadano',
     category: 'Infraestructura',
-    votes: { favor: 15, contra: 7, abstenciones: 3 },
+    status: 'En debate',
     datePresented: '2025-04-06',
     dateExpiry: '2025-05-06',
-    status: 'En debate',
     description: 'Proyecto para modernizar y mejorar el sistema de transporte público en la ciudad, incluyendo la renovación de la flota de vehículos y la implementación de tecnologías más eficientes.',
     documentLink: '#',
+    votes: { favor: 15, contra: 7, abstenciones: 3 }
   },
 ];
 
@@ -129,7 +154,7 @@ export function PendingLaws() {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Leyes Pendientes de Aprobación</h1>
+        <h1 className="text-2xl font-bold mb-6">Orden del Día</h1>
         
         <div className="space-y-8">
           {pendingLaws.map((law) => (

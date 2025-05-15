@@ -41,18 +41,23 @@ const LoginPage = () => {
   return (
     <div className="container relative min-h-screen flex-col items-center justify-center grid lg:max-w-none lg:grid-cols-2 lg:px-0 bg-gray-100 dark:bg-black">
 
-      <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r dark:border-gray-900">
-        <div className="absolute inset-0 bg-zinc-900 bg-[url('https://www.hcdmza.gob.ar/site/images/Noticias/2023/09-septiembre/WhatsApp_Image_2023-09-26_at_101812.jpeg')] bg-cover bg-center bg-no-repeat opacity-50 dark:opacity-30" />
-        <div className="relative z-20 flex items-center text-lg font-medium text-black dark:text-white">
-          <Building2 className="h-8 w-8 mr-2" />
-          Poder Legislativo
-        </div>
-        <div className="relative z-20 mt-auto text-black dark:text-white">
-          <blockquote className="space-y-2">
-            <p className="text-lg">
-              "Esta plataforma ha revolucionado la forma en que gestionamos nuestros proyectos."
-            </p>
-          </blockquote>
+      <div className="relative hidden h-full flex-col p-10 text-white lg:flex dark:border-r dark:border-gray-900">
+        <div 
+          className="absolute inset-0 bg-zinc-900 bg-[url('https://www.hcdmza.gob.ar/site/images/Noticias/2023/09-septiembre/WhatsApp_Image_2023-09-26_at_101812.jpeg')] bg-cover bg-center bg-no-repeat"
+          style={{ 
+        filter: "brightness(0.7) contrast(1.2)",
+        boxShadow: "inset 0 0 0 2000px rgba(0, 0, 0, 0.4)"
+          }}
+        />
+        <div className="relative z-20 flex flex-col h-full">
+          <div className="flex items-center text-2xl font-bold text-white mb-4 backdrop-blur-sm bg-black/30 p-4 rounded-lg">
+        <Building2 className="h-8 w-8 mr-3" />
+        Poder Legislativo
+          </div>
+          <div className="mt-auto backdrop-blur-sm bg-black/30 p-6 rounded-lg">
+        <h3 className="text-xl font-semibold mb-2">Sistema de Gestión</h3>
+        <p className="text-gray-200">Inicie sesión para acceder a las funcionalidades del sistema.</p>
+          </div>
         </div>
       </div>
       <div className="lg:p-8 dark:bg-black">

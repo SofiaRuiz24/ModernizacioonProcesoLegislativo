@@ -32,10 +32,10 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Leyes Pendientes */}
+      {/* entes */}
       <div className="rounded-lg border shadow-sm">
         <div className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Leyes Pendientes de Aprobación</h2>
+          <h2 className="text-xl font-semibold mb-4">Orden del Día</h2>
           <div className="space-y-4">
             {[
               {
