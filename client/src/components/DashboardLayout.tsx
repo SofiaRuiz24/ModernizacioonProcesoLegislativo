@@ -51,7 +51,7 @@ export function DashboardLayout() {
           href: '/dashboard'
         },
         {
-          title: 'Informacion Personal',
+          title: 'Presentar Proyecto',
           icon: <FileText className="mr-2 h-4 w-4" />,
           variant: 'ghost',
           href: '/dashboard/submit-law'
