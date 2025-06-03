@@ -95,14 +95,14 @@ export function Settings() {
         {/* Notificaciones */}
         <Card>
           <CardHeader>
-            <CardTitle>Notificaciones</CardTitle>
+            <CardTitle>Alertas</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Notificaciones del Sistema</Label>
+                <Label>Alertas del Sistema</Label>
                 <p className="text-sm text-gray-500">
-                  Recibir notificaciones sobre nuevas leyes y actualizaciones
+                  Recibir alertas sobre nuevas leyes y actualizaciones
                 </p>
               </div>
               <Switch
@@ -114,7 +114,7 @@ export function Settings() {
             </div>
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label>Notificaciones por Email</Label>
+                <Label>Alertas por Email</Label>
                 <p className="text-sm text-gray-500">
                   Recibir actualizaciones por correo electrónico
                 </p>

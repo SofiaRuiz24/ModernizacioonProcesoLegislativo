@@ -37,6 +37,7 @@ export function DashboardLayout() {
   const location = useLocation();
 
   const handleLogout = () => {
+    localStorage.removeItem('userToken');
     navigate('/login');
   };
 

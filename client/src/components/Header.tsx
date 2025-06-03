@@ -46,9 +46,27 @@ export function Header() {
     return () => window.removeEventListener('storage', checkAuth);
   }, []);
 
-  const handleAuthButtonClick = () => {
-    if (isAuthenticated) {
-      navigate('/dashboard');
+  const handleAuthButtonClick = async () => {
+    const token = localStorage.getItem('userToken');
+    if (token) {
+      try {
+        const res = await fetch('/api/validate-token', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (res.ok) {
+          navigate('/dashboard');
+        } else {
+          localStorage.removeItem('userToken');
+          setIsAuthenticated(false);
+          navigate('/login');
+        }
+      } catch (err) {
+        localStorage.removeItem('userToken');
+        setIsAuthenticated(false);
+        navigate('/login');
+      }
     } else {
       navigate('/login');
     }

@@ -12,6 +12,7 @@ import { Legislators } from './pages/Legislators';
 import { Profile } from './pages/Profile';
 import { DashboardLayout } from './components/DashboardLayout';
 import { ThemeProvider } from './components/ui/theme-provider';
+import PrivateRoute from './components/PrivateRoute';
 
 function AppLayout() {
   const location = useLocation();
@@ -28,15 +29,17 @@ function AppLayout() {
           <Route path="/archive-search" element={<ArchiveSearch />} />
           <Route path="/submit-project" element={<SubmitProject />} />
           
-          {/* Dashboard Routes */}
-          <Route path="/dashboard" element={<DashboardLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="submit-law" element={<SubmitProject />} />
-            <Route path="pending-laws" element={<PendingLaws />} />
-            <Route path="history" element={<History />} />
-            <Route path="settings" element={<Settings />} />
-            <Route path="legislators" element={<Legislators />} />
-            <Route path="profile" element={<Profile />} />
+          {/* Dashboard Routes protegidas */}
+          <Route element={<PrivateRoute />}>
+            <Route path="/dashboard" element={<DashboardLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="submit-law" element={<SubmitProject />} />
+              <Route path="pending-laws" element={<PendingLaws />} />
+              <Route path="history" element={<History />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="legislators" element={<Legislators />} />
+              <Route path="profile" element={<Profile />} />
+            </Route>
           </Route>
         </Routes>
       </main>

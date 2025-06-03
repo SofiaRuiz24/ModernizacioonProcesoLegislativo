@@ -2,6 +2,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
 import User from '../models/User.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -97,6 +98,11 @@ router.post('/login', [
   } catch (error) {
     res.status(500).json({ message: 'Error del servidor', error: error.message });
   }
+});
+
+// Validar token
+router.get('/validate-token', authenticateToken, (req, res) => {
+  res.json({ valid: true, user: req.user });
 });
 
 export default router; 
