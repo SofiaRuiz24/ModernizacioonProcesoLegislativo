@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,54 +29,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const legislators = [
-  {
-    id: 1,
-    name: 'Ana Silva',
-    email: 'ana.silva@legislatura.gov.ar',
-    phone: '+54 261 555-0101',
-    party: 'Partido Progresista',
-    status: 'Activo',
-    projects: 12
-  },
-  {
-    id: 2,
-    name: 'Roberto Torres',
-    email: 'roberto.torres@legislatura.gov.ar',
-    phone: '+54 261 555-0102',
-    party: 'Partido Conservador',
-    status: 'Activo',
-    projects: 8
-  },
-  {
-    id: 3,
-    name: 'Laura Martínez',
-    email: 'laura.martinez@legislatura.gov.ar',
-    phone: '+54 261 555-0103',
-    party: 'Partido Liberal',
-    status: 'Activo',
-    projects: 15
-  },
-  {
-    id: 4,
-    name: 'Carlos Rodríguez',
-    email: 'carlos.rodriguez@legislatura.gov.ar',
-    phone: '+54 261 555-0104',
-    party: 'Partido Verde',
-    status: 'Licencia',
-    projects: 5
-  },
-  {
-    id: 5,
-    name: 'María López',
-    email: 'maria.lopez@legislatura.gov.ar',
-    phone: '+54 261 555-0105',
-    party: 'Partido Progresista',
-    status: 'Activo',
-    projects: 19
-  }
-];
-
 const partyColors: Record<string, string> = {
   'Partido Progresista': 'bg-blue-100 text-blue-800',
   'Partido Conservador': 'bg-red-100 text-red-800',
@@ -103,8 +55,19 @@ export function Legislators() {
     email: '',
     phone: '',
     party: '',
-    status: 'Activo'
+    status: 'Activo',
+    position: '',
+    district: '',
+    startDate: ''
   });
+  const [legislators, setLegislators] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('http://localhost:5001/api/legislators')
+      .then(res => res.json())
+      .then(data => setLegislators(data))
+      .catch(() => setLegislators([]));
+  }, []);
 
   const filteredLegislators = legislators.filter(legislator => {
     const matchesSearch = legislator.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -117,11 +80,33 @@ export function Legislators() {
     return matchesSearch && matchesParty && matchesStatus;
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Nuevo legislador:', newLegislator);
-    setIsDialogOpen(false);
-    setNewLegislator({ name: '', email: '', phone: '', party: '', status: 'Activo' });
+    try {
+      const res = await fetch('http://localhost:5001/api/legislators', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newLegislator),
+      });
+      if (res.ok) {
+        setIsDialogOpen(false);
+        setNewLegislator({ name: '', email: '', phone: '', party: '', status: 'Activo', position: '', district: '', startDate: '' });
+        fetch('http://localhost:5001/api/legislators')
+          .then(res => res.json())
+          .then(data => setLegislators(data));
+      } else {
+        const data = await res.json();
+        if (data.errors) {
+          alert(data.errors.map((err: any) => err.msg).join('\n'));
+        } else {
+          alert(data.message || 'Error al crear legislador');
+        }
+      }
+    } catch (err) {
+      alert('Error de red al crear legislador');
+    }
   };
 
   const handleEdit = (legislator: any) => {
@@ -247,6 +232,34 @@ export function Legislators() {
                         ]}
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="position">Cargo</Label>
+                      <Input
+                        id="position"
+                        value={newLegislator.position}
+                        onChange={(e) => setNewLegislator({ ...newLegislator, position: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="district">Distrito</Label>
+                      <Input
+                        id="district"
+                        value={newLegislator.district}
+                        onChange={(e) => setNewLegislator({ ...newLegislator, district: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="startDate">Fecha de Inicio</Label>
+                      <Input
+                        id="startDate"
+                        type="date"
+                        value={newLegislator.startDate}
+                        onChange={(e) => setNewLegislator({ ...newLegislator, startDate: e.target.value })}
+                        required
+                      />
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
@@ -311,7 +324,7 @@ export function Legislators() {
 
       <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {filteredLegislators.map((legislator) => (
-          <Card key={legislator.id} className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-shadow">
+          <Card key={legislator._id || legislator.id} className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-shadow">
             <CardHeader className="pb-2 relative">
               <div className="absolute right-2 top-2">
                 <DropdownMenu>
@@ -350,52 +363,67 @@ export function Legislators() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              
               <CardTitle className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-r from-indigo-100 to-blue-100 flex items-center justify-center shadow-sm flex-shrink-0">
-                  <span className="text-lg font-medium text-indigo-600">{legislator.name[0]}</span>
+                  <span className="text-lg font-medium text-indigo-600">{legislator.name ? legislator.name[0] : '?'}</span>
                 </div>
                 <div className="w-full sm:w-auto mt-2 sm:mt-0">
                   <p className="text-lg font-semibold text-gray-800">{legislator.name}</p>
                   <div className="flex items-center flex-wrap gap-2 mt-1">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${partyColors[legislator.party] || 'bg-gray-100 text-gray-800'}`}>
-                      {legislator.party}
-                    </span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[legislator.status] || 'bg-gray-100 text-gray-800'}`}>
+                    <span className={`${statusColors[legislator.status]} px-2 py-1 rounded-full text-xs font-medium`}>
                       {legislator.status}
+                    </span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${partyColors[legislator.party] || 'bg-gray-100 text-gray-800'}`}>
+                      {legislator.party}
                     </span>
                   </div>
                 </div>
               </CardTitle>
             </CardHeader>
-            
             <CardContent className="pb-3">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-indigo-500" />
                   <a href={`mailto:${legislator.email}`} className="text-gray-700 hover:text-indigo-600">
                     {legislator.email}
                   </a>
                 </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone className="h-4 w-4 text-indigo-500" />
-                  <a href={`tel:${legislator.phone}`} className="text-gray-700 hover:text-indigo-600">
-                    {legislator.phone}
-                  </a>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
+                {legislator.phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-indigo-500" />
+                    <a href={`tel:${legislator.phone}`} className="text-gray-700 hover:text-indigo-600">
+                      {legislator.phone}
+                    </a>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-indigo-500" />
-                  <span className="text-gray-700">{legislator.projects} proyectos presentados</span>
+                  <span className="text-gray-700 font-medium">Cargo:</span>
+                  <span className="text-gray-700">{legislator.position}</span>
                 </div>
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-indigo-500" />
+                  <span className="text-gray-700 font-medium">Distrito:</span>
+                  <span className="text-gray-700">{legislator.district}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-700 font-medium">Fecha de inicio:</span>
+                  <span className="text-gray-700">{legislator.startDate ? new Date(legislator.startDate).toLocaleDateString() : ''}</span>
+                </div>
+                {legislator.biography && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-700 font-medium">Bio:</span>
+                    <span className="text-gray-700">{legislator.biography}</span>
+                  </div>
+                )}
               </div>
             </CardContent>
-            
             <CardFooter className="pt-0 pb-4 flex flex-col sm:flex-row gap-2">
               <Button 
                 variant="outline" 
                 size="sm" 
                 className="w-full sm:flex-1 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800"
-                onClick={() => window.location.href = `/dashboard/legislators/${legislator.id}`}
+                onClick={() => window.location.href = `/dashboard/legislators/${legislator._id || legislator.id}`}
               >
                 <UserIcon className="h-3 w-3 mr-1" />
                 Ver perfil
@@ -404,7 +432,7 @@ export function Legislators() {
                 variant="outline" 
                 size="sm" 
                 className="w-full sm:flex-1 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800"
-                onClick={() => window.location.href = `/dashboard/projects?author=${legislator.id}`}
+                onClick={() => window.location.href = `/dashboard/projects?author=${legislator._id || legislator.id}`}
               >
                 <Building2 className="h-3 w-3 mr-1" />
                 Ver proyectos
@@ -413,159 +441,6 @@ export function Legislators() {
           </Card>
         ))}
       </div>
-
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Editar Legislador</DialogTitle>
-            <DialogDescription>
-              Actualice los datos del legislador
-            </DialogDescription>
-          </DialogHeader>
-          {selectedLegislator && (
-            <form onSubmit={handleSaveEdit}>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-name">Nombre Completo</Label>
-                  <Input
-                    id="edit-name"
-                    value={selectedLegislator.name}
-                    onChange={(e) =>
-                      setSelectedLegislator({ ...selectedLegislator, name: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-email">Email</Label>
-                  <Input
-                    id="edit-email"
-                    type="email"
-                    value={selectedLegislator.email}
-                    onChange={(e) =>
-                      setSelectedLegislator({ ...selectedLegislator, email: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-phone">Teléfono</Label>
-                  <Input
-                    id="edit-phone"
-                    value={selectedLegislator.phone}
-                    onChange={(e) =>
-                      setSelectedLegislator({ ...selectedLegislator, phone: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-party">Partido Político</Label>
-                  <Select
-                    id="edit-party"
-                    value={selectedLegislator.party}
-                    onChange={(e) =>
-                      setSelectedLegislator({ ...selectedLegislator, party: e.target.value })
-                    }
-                    required
-                    options={[
-                      { value: "Partido Progresista", label: "Partido Progresista" },
-                      { value: "Partido Conservador", label: "Partido Conservador" },
-                      { value: "Partido Liberal", label: "Partido Liberal" },
-                      { value: "Partido Verde", label: "Partido Verde" }
-                    ]}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-status">Estado</Label>
-                  <Select
-                    id="edit-status"
-                    value={selectedLegislator.status}
-                    onChange={(e) =>
-                      setSelectedLegislator({ ...selectedLegislator, status: e.target.value })
-                    }
-                    required
-                    options={[
-                      { value: "Activo", label: "Activo" },
-                      { value: "Licencia", label: "Licencia" },
-                      { value: "Suspendido", label: "Suspendido" }
-                    ]}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">
-                  Guardar Cambios
-                </Button>
-              </DialogFooter>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-red-600">Confirmar Eliminación</DialogTitle>
-            <DialogDescription>
-              ¿Está seguro que desea eliminar a este legislador? Esta acción no se puede deshacer.
-            </DialogDescription>
-          </DialogHeader>
-          {selectedLegislator && (
-            <div className="py-4">
-              <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
-                <p className="text-red-800 font-medium">{selectedLegislator.name}</p>
-                <p className="text-red-700 text-sm">{selectedLegislator.email}</p>
-                <p className="text-red-700 text-sm">{selectedLegislator.party}</p>
-              </div>
-              <p className="text-sm text-gray-500">
-                Al eliminar este legislador, también se eliminará su asociación con los proyectos 
-                presentados, pero los proyectos se mantendrán en el sistema.
-              </p>
-            </div>
-          )}
-          <DialogFooter className="flex justify-between gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsDeleteDialogOpen(false)}
-              className="flex-1"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              onClick={handleConfirmDelete}
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-            >
-              Eliminar Legislador
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {filteredLegislators.length === 0 && (
-        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-8 text-center my-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-4">
-            <UserIcon className="h-8 w-8 text-gray-400" />
-          </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-1">No se encontraron legisladores</h3>
-          <p className="text-gray-500 mb-4">Intente con otros términos de búsqueda o filtros</p>
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              setSearchTerm('');
-              setFilterParty('Todos');
-              setFilterStatus('Todos');
-            }}
-            className="mx-auto"
-          >
-            Limpiar filtros
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
-
-export default Legislators;
