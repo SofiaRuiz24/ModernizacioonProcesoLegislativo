@@ -9,8 +9,42 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Mail, Phone, Building2, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export function Profile() {
+  const [user, setUser] = useState({
+    username: '',
+    email: '',
+    phone: '',
+    role: '',
+    createdAt: '',
+    isActive: true
+  });
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const token = localStorage.getItem('userToken');
+      if (!token) return;
+      try {
+        const res = await fetch('http://localhost:5001/api/validate-token', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setUser({
+            username: data.user.username || '',
+            email: data.user.email || '',
+            phone: data.user.phone || '',
+            role: data.user.role || '',
+            createdAt: data.user.createdAt || '',
+            isActive: data.user.isActive !== false
+          });
+        }
+      } catch (e) { /* ignore error */ }
+    };
+    fetchUser();
+  }, []);
+
   return (
     <div className="container mx-auto py-12 px-4">
       <div className="max-w-3xl mx-auto">
@@ -25,9 +59,9 @@ export function Profile() {
                 </div>
               </div>
               <div>
-                <CardTitle className="text-2xl font-bold text-gray-800">Admin User</CardTitle>
+                <CardTitle className="text-2xl font-bold text-gray-800">{user.username || 'Usuario'}</CardTitle>
                 <CardDescription className="text-indigo-600 font-medium">
-                  Administrador del Sistema
+                  {user.role ? (user.role === 'admin' ? 'Administrador del Sistema' : user.role.charAt(0).toUpperCase() + user.role.slice(1)) : 'Rol desconocido'}
                 </CardDescription>
               </div>
             </div>
@@ -35,14 +69,13 @@ export function Profile() {
             <div className="bg-gray-50 p-1 rounded-lg mb-2">
               <div className="flex space-x-2 overflow-x-auto py-2 px-2">
                 <span className="px-3 py-1 bg-white rounded-full text-xs font-medium text-gray-700 shadow-sm flex items-center">
-                  <span className="w-2 h-2 rounded-full bg-green-500 mr-2"></span>Activo
+                  <span className={`w-2 h-2 rounded-full ${user.isActive ? 'bg-green-500' : 'bg-red-500'} mr-2`}></span>{user.isActive ? 'Activo' : 'Inactivo'}
                 </span>
-                <span className="px-3 py-1 bg-white rounded-full text-xs font-medium text-gray-700 shadow-sm">
-                  Miembro desde Abril 2025
-                </span>
-                <span className="px-3 py-1 bg-white rounded-full text-xs font-medium text-gray-700 shadow-sm">
-                  8 proyectos
-                </span>
+                {user.createdAt && (
+                  <span className="px-3 py-1 bg-white rounded-full text-xs font-medium text-gray-700 shadow-sm">
+                    Miembro desde {new Date(user.createdAt).toLocaleDateString()}
+                  </span>
+                )}
               </div>
             </div>
           </CardHeader>
@@ -52,24 +85,16 @@ export function Profile() {
               <div className="space-y-6">
                 <h3 className="text-lg font-medium text-gray-800 border-b border-gray-200 pb-2">Información Personal</h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
                   <div className="space-y-2">
-                    <Label htmlFor="firstName" className="text-gray-700">Nombre</Label>
+                    <Label htmlFor="firstName" className="text-gray-700">Nombre completo</Label>
                     <Input 
                       id="firstName" 
-                      defaultValue="Admin" 
+                      value={user.username}
                       className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-lg"
                     />
+                  
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="lastName" className="text-gray-700">Apellido</Label>
-                    <Input 
-                      id="lastName" 
-                      defaultValue="User" 
-                      className="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-lg" 
-                    />
-                  </div>
-                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-gray-700">Email</Label>
@@ -78,7 +103,7 @@ export function Profile() {
                     <Input 
                       id="email" 
                       type="email" 
-                      defaultValue="admin@example.com" 
+                      value={user.email}
                       className="pl-10 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-lg" 
                     />
                   </div>
@@ -90,7 +115,7 @@ export function Profile() {
                     <Phone className="absolute left-3 h-4 w-4 text-indigo-500" />
                     <Input 
                       id="phone" 
-                      defaultValue="+54 261 555-0100" 
+                      value={user.phone || ''}
                       className="pl-10 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-lg" 
                     />
                   </div>
@@ -102,7 +127,7 @@ export function Profile() {
                     <Building2 className="absolute left-3 h-4 w-4 text-indigo-500" />
                     <Input 
                       id="role" 
-                      defaultValue="Administrador del Sistema" 
+                      value={user.role ? (user.role === 'admin' ? 'Administrador del Sistema' : user.role.charAt(0).toUpperCase() + user.role.slice(1)) : ''}
                       readOnly 
                       className="pl-10 bg-gray-50 border-gray-300 text-gray-600 rounded-lg cursor-not-allowed" 
                     />

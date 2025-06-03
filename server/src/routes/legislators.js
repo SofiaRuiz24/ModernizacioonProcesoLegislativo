@@ -1,6 +1,7 @@
 import express from 'express';
 import { body, validationResult } from 'express-validator';
 import Legislator from '../models/Legislator.js';
+import User from '../models/User.js';
 
 const router = express.Router();
 
@@ -46,7 +47,8 @@ router.post('/', [
   body('position').trim().notEmpty().withMessage('Posición es requerida'),
   body('district').trim().notEmpty().withMessage('Distrito es requerido'),
   body('email').isEmail().withMessage('Email debe ser válido'),
-  body('startDate').isISO8601().withMessage('Fecha de inicio debe ser válida')
+  body('startDate').isISO8601().withMessage('Fecha de inicio debe ser válida'),
+  body('password').isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -54,8 +56,29 @@ router.post('/', [
       return res.status(400).json({ errors: errors.array() });
     }
 
+    // Crear legislador
     const legislator = new Legislator(req.body);
     await legislator.save();
+
+    // Crear usuario asociado
+    try {
+      const user = new User({
+        username: req.body.name,
+        email: req.body.email,
+        password: req.body.password,
+        role: 'legislator',
+        isActive: true
+      });
+      await user.save();
+    } catch (userError) {
+      // Si falla la creación del usuario, eliminar el legislador creado
+      await Legislator.findByIdAndDelete(legislator._id);
+      if (userError.code === 11000) {
+        return res.status(400).json({ message: 'El email o nombre de usuario ya existe como usuario.' });
+      }
+      return res.status(500).json({ message: 'Error al crear usuario para legislador', error: userError.message });
+    }
+
     res.status(201).json(legislator);
   } catch (error) {
     if (error.code === 11000) {

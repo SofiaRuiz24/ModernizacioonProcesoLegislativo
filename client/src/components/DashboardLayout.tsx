@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
@@ -35,6 +35,27 @@ interface NavSection {
 export function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [user, setUser] = useState({ username: '', email: '' });
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const token = localStorage.getItem('userToken');
+      if (!token) return;
+      try {
+        const res = await fetch('http://localhost:5001/api/validate-token', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setUser({
+            username: data.user.username || '',
+            email: data.user.email || '',
+          });
+        }
+      } catch (e) { /* ignore error */ }
+    };
+    fetchUser();
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('userToken');
@@ -133,19 +154,19 @@ export function DashboardLayout() {
                 <Button variant="ghost" className="w-full justify-start">
                   <img
                     src="https://github.com/shadcn.png"
-                    alt="@shadcn"
+                    alt={user.username || 'avatar'}
                     className="mr-2 h-6 w-6 rounded-full"
                   />
-                  <span>shadcn</span>
+                  <span>{user.username || 'Usuario'}</span>
                   <ChevronDown className="ml-auto h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="flex items-center">
                   <div className="ml-2">
-                    <p className="text-sm font-medium leading-none">shadcn</p>
+                    <p className="text-sm font-medium leading-none">{user.username || 'Usuario'}</p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      m@example.com
+                      {user.email || 'Sin email'}
                     </p>
                   </div>
                 </DropdownMenuLabel>

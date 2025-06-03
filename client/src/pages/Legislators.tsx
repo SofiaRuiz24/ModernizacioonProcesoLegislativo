@@ -58,7 +58,8 @@ export function Legislators() {
     status: 'Activo',
     position: '',
     district: '',
-    startDate: ''
+    startDate: '',
+    password: ''
   });
   const [legislators, setLegislators] = useState<any[]>([]);
 
@@ -92,7 +93,7 @@ export function Legislators() {
       });
       if (res.ok) {
         setIsDialogOpen(false);
-        setNewLegislator({ name: '', email: '', phone: '', party: '', status: 'Activo', position: '', district: '', startDate: '' });
+        setNewLegislator({ name: '', email: '', phone: '', party: '', status: 'Activo', position: '', district: '', startDate: '', password: '' });
         fetch('http://localhost:5001/api/legislators')
           .then(res => res.json())
           .then(data => setLegislators(data));
@@ -257,6 +258,16 @@ export function Legislators() {
                         type="date"
                         value={newLegislator.startDate}
                         onChange={(e) => setNewLegislator({ ...newLegislator, startDate: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Contraseña</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={newLegislator.password}
+                        onChange={(e) => setNewLegislator({ ...newLegislator, password: e.target.value })}
                         required
                       />
                     </div>
