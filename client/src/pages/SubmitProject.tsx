@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useEditor as useTipTapEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Card } from '@/components/ui/card';
@@ -13,6 +13,38 @@ export function SubmitProject() {
   const [isUsingEditor, setIsUsingEditor] = useState(true);
   const [signatures, setSignatures] = useState<File | null>(null);
   const [projectFile, setProjectFile] = useState<File | null>(null);
+
+  // Estado para los datos del usuario
+  const [user, setUser] = useState({
+    fullName: '',
+    docType: '',
+    docNumber: '',
+    affiliation: ''
+  });
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const token = localStorage.getItem('userToken');
+      if (!token) return setLoadingUser(false);
+      try {
+        const res = await fetch('http://localhost:5001/api/validate-token', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setUser({
+            fullName: data.user.username || '',
+            docType: data.user.docType || '',
+            docNumber: data.user.docNumber || '',
+            affiliation: data.user.affiliation || ''
+          });
+        }
+      } catch (e) { /* ignore error */ }
+      setLoadingUser(false);
+    };
+    fetchUser();
+  }, []);
 
   const editor = useTipTapEditor({
     extensions: [StarterKit],
@@ -69,21 +101,21 @@ export function SubmitProject() {
                   <Label htmlFor="fullName" className="text-sm font-medium">Nombre Completo</Label>
                   <Input 
                     id="fullName" 
-                    placeholder="Ingrese su nombre completo" 
+                    value={user.fullName}
+                    readOnly
                     required 
-                    className="h-10 border-gray-200 focus:border-gray-300 focus:ring-gray-200" 
+                    className="h-10 border-gray-200 focus:border-gray-300 focus:ring-gray-200 bg-gray-100 cursor-not-allowed" 
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="docType" className="text-sm font-medium">Tipo de Documento</Label>
-                  <Select
-                    className="h-10 border-gray-200"
-                    options={[
-                      { value: "dni", label: "DNI" },
-                      { value: "passport", label: "Pasaporte" },
-                      { value: "other", label: "Otro" }
-                    ]}
+                  <Input
+                    id="docType"
+                    value={user.docType}
+                    readOnly
+                    required
+                    className="h-10 border-gray-200 focus:border-gray-300 focus:ring-gray-200 bg-gray-100 cursor-not-allowed"
                   />
                 </div>
 
@@ -91,9 +123,10 @@ export function SubmitProject() {
                   <Label htmlFor="docNumber" className="text-sm font-medium">Número de Documento</Label>
                   <Input 
                     id="docNumber" 
-                    placeholder="Ingrese su número de documento" 
+                    value={user.docNumber}
+                    readOnly
                     required 
-                    className="h-10 border-gray-200 focus:border-gray-300 focus:ring-gray-200" 
+                    className="h-10 border-gray-200 focus:border-gray-300 focus:ring-gray-200 bg-gray-100 cursor-not-allowed" 
                   />
                 </div>
 
@@ -101,8 +134,9 @@ export function SubmitProject() {
                   <Label htmlFor="affiliation" className="text-sm font-medium">Afiliación (Opcional)</Label>
                   <Input 
                     id="affiliation" 
-                    placeholder="Ingrese su afiliación" 
-                    className="h-10 border-gray-200 focus:border-gray-300 focus:ring-gray-200" 
+                    value={user.affiliation}
+                    readOnly
+                    className="h-10 border-gray-200 focus:border-gray-300 focus:ring-gray-200 bg-gray-100 cursor-not-allowed" 
                   />
                 </div>
               </div>
