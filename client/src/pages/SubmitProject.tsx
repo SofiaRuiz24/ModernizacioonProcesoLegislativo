@@ -213,13 +213,63 @@ export function SubmitProject() {
       );
 
       await tx.wait();
+      
+      // Obtener el ID de la nueva ley
+      const cantidadLeyes = await contract.obtenerCantidadLeyes(sesionActivaBigInt);
+      console.log('Cantidad de leyes en la sesión:', cantidadLeyes.toString());
+      
+      const leyId = cantidadLeyes - 1n;
+      console.log('ID de la nueva ley:', leyId.toString());
+      
+      const nuevaLey = await contract.obtenerLey(sesionActivaBigInt, leyId);
+      console.log('Datos de la nueva ley:', {
+        id: nuevaLey.id.toString(),
+        titulo: nuevaLey.titulo,
+        descripcion: nuevaLey.descripcion,
+        activa: nuevaLey.activa
+      });
+
+      // Sincronizar con MongoDB
+      try {
+        const lawData = {
+          blockchainSessionId: Number(sesionActivaBigInt),
+          blockchainId: Number(leyId), // Usar leyId en lugar de nuevaLey.id
+          title: nuevaLey.titulo,
+          description: nuevaLey.descripcion,
+          author: selectedLegislador,
+          party: 'Partido', // TODO: Obtener del legislador seleccionado
+          category: 'Social', // TODO: Hacer seleccionable
+          dateExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        };
+        
+        console.log('Enviando datos a MongoDB:', lawData);
+
+        const response = await fetch('http://localhost:5001/api/laws', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(lawData)
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Error response from server:', errorData);
+          throw new Error(errorData.message || 'Error al sincronizar con la base de datos');
+        }
+
+        const savedLaw = await response.json();
+        console.log('Ley guardada en MongoDB:', savedLaw);
+      } catch (error) {
+        console.error('Error syncing with database:', error);
+        // No lanzamos el error para no interrumpir el flujo, pero lo registramos
+      }
+
       setSuccess('Proyecto de ley presentado exitosamente');
       
       // Actualizar la lista de proyectos
-      const cantidadLeyes = await contract.obtenerCantidadLeyes(sesionActivaBigInt);
-      const nuevaLey = await contract.obtenerLey(sesionActivaBigInt, cantidadLeyes - 1n);
       setProyectosLey(prev => [...prev, {
-        id: Number(nuevaLey.id),
+        id: Number(leyId),
         titulo: nuevaLey.titulo,
         descripcion: nuevaLey.descripcion,
         proponente: selectedLegislador,

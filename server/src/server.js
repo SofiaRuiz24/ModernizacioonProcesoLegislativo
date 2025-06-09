@@ -1,6 +1,6 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import connectDB from './config/database.js';
 
@@ -8,9 +8,6 @@ import connectDB from './config/database.js';
 import authRoutes from './routes/auth.js';
 import legislatorRoutes from './routes/legislators.js';
 import lawRoutes from './routes/laws.js';
-
-// Cargar variables de entorno
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

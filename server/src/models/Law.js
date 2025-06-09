@@ -7,59 +7,40 @@ const voteSchema = new mongoose.Schema({
 });
 
 const lawSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  description: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  author: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  party: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  category: {
-    type: String,
-    required: true,
-    enum: ['Económica', 'Social', 'Educación', 'Salud', 'Seguridad', 'Medio Ambiente', 'Infraestructura', 'Justicia']
-  },
+  blockchainId: Number,
+  blockchainSessionId: Number,
+  title: String,
+  description: String,
+  author: String,
+  party: String,
+  category: String,
   status: {
     type: String,
-    enum: ['En revisión', 'Pendiente', 'En debate', 'Aprobada', 'Rechazada'],
     default: 'Pendiente'
+  },
+  blockchainStatus: {
+    type: Boolean,
+    default: true
+  },
+  blockchainVotes: {
+    favor: { type: Number, default: 0 },
+    contra: { type: Number, default: 0 },
+    abstenciones: { type: Number, default: 0 },
+    ausentes: { type: Number, default: 0 }
   },
   datePresented: {
     type: Date,
     default: Date.now
   },
-  dateExpiry: {
-    type: Date,
-    required: true
-  },
-  documentLink: {
-    type: String,
-    trim: true
-  },
+  dateExpiry: Date,
+  documentLink: String,
   votes: {
     type: voteSchema,
     default: () => ({})
   },
-  tags: [{
-    type: String,
-    trim: true
-  }],
+  tags: [String],
   priority: {
     type: String,
-    enum: ['Baja', 'Media', 'Alta', 'Urgente'],
     default: 'Media'
   }
 }, {
