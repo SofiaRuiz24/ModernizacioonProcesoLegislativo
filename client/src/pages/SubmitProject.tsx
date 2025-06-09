@@ -527,6 +527,15 @@ export function SubmitProject() {
                 )}
               </div>
             </Card>
+
+            {/* Agregar el componente FinalizeSessionCard al final */}
+            <FinalizeSessionCard 
+              sessionId={sesionActiva} 
+              onSessionFinalized={async () => {
+                setSesionActiva(null);
+                setProyectosLey([]);
+              }} 
+            />
           </>
         )}
       </div>
@@ -619,6 +628,95 @@ function CreateSessionCard({ onSessionCreated }: CreateSessionCardProps) {
           )}
         </Button>
       </form>
+    </Card>
+  );
+}
+
+interface FinalizeSessionCardProps {
+  sessionId: number | null;
+  onSessionFinalized: () => Promise<void>;
+}
+
+function FinalizeSessionCard({ sessionId, onSessionFinalized }: FinalizeSessionCardProps) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const handleFinalize = async () => {
+    if (!window.ethereum) {
+      setError('Por favor, instala MetaMask para continuar');
+      return;
+    }
+    if (sessionId === null) {
+      setError('No hay una sesión activa para finalizar');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(contractAddress, contractJson.abi, signer);
+
+      const tx = await contract.finalizarSesion(sessionId);
+      await tx.wait();
+
+      setSuccess('Sesión finalizada exitosamente');
+      await onSessionFinalized();
+    } catch (error) {
+      console.error('Error finalizando sesión:', error);
+      setError(error instanceof Error ? error.message : 'Error al finalizar la sesión');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (sessionId === null) return null;
+
+  return (
+    <Card className="shadow-sm border-0 mt-8">
+      <div className="p-6 border-b">
+        <h2 className="text-xl font-semibold tracking-tight">Finalizar Sesión</h2>
+        <p className="text-muted-foreground mt-1">Finaliza la sesión actual para poder crear una nueva</p>
+      </div>
+
+      <div className="p-6">
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-md mb-4">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
+        {success && (
+          <div className="p-4 bg-green-50 border border-green-200 rounded-md mb-4">
+            <p className="text-sm text-green-600">{success}</p>
+          </div>
+        )}
+
+        <Button 
+          onClick={handleFinalize}
+          className="w-full py-2 h-11 bg-red-600 hover:bg-red-700 text-white font-medium"
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Finalizando Sesión...
+            </>
+          ) : (
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              Finalizar Sesión Actual
+            </>
+          )}
+        </Button>
+      </div>
     </Card>
   );
 }
