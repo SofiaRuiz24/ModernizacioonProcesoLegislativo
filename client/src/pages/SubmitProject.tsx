@@ -229,27 +229,54 @@ export function SubmitProject() {
         activa: nuevaLey.activa
       });
 
-      // Sincronizar con MongoDB
+      // Sincronizar con MongoDB usando FormData para los archivos
       try {
-        const lawData = {
-          blockchainSessionId: Number(sesionActivaBigInt),
-          blockchainId: Number(leyId), // Usar leyId en lugar de nuevaLey.id
-          title: nuevaLey.titulo,
-          description: nuevaLey.descripcion,
-          author: selectedLegislador,
-          party: 'Partido', // TODO: Obtener del legislador seleccionado
-          category: 'Social', // TODO: Hacer seleccionable
-          dateExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        };
+        const formData = new FormData();
         
-        console.log('Enviando datos a MongoDB:', lawData);
+        // Agregar datos básicos - Asegurarnos que los IDs se envían como números
+        const sessionId = Number(sesionActivaBigInt);
+        const lawId = Number(leyId);
+        
+        if (isNaN(sessionId) || isNaN(lawId)) {
+          throw new Error('IDs inválidos para la ley');
+        }
+
+        // Log de los valores antes de agregarlos al FormData
+        console.log('📤 Valores a enviar:', {
+          sessionId,
+          lawId,
+          originalSessionId: sesionActivaBigInt.toString(),
+          originalLawId: leyId.toString()
+        });
+
+        formData.append('blockchainSessionId', sessionId.toString());
+        formData.append('blockchainId', lawId.toString());
+        formData.append('title', nuevaLey.titulo);
+        formData.append('description', nuevaLey.descripcion);
+        formData.append('author', selectedLegislador);
+        formData.append('party', 'Partido'); // TODO: Obtener del legislador seleccionado
+        formData.append('category', 'Social'); // TODO: Hacer seleccionable
+        formData.append('dateExpiry', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString());
+
+        // Agregar archivos si existen
+        if (!isUsingEditor && projectFile) {
+          console.log('📄 Agregando archivo de proyecto:', projectFile.name);
+          formData.append('projectDocument', projectFile);
+        }
+        if (signatures) {
+          console.log('📄 Agregando archivo de firmas:', signatures.name);
+          formData.append('signaturesDocument', signatures);
+        }
+        
+        // Log de todos los datos en el FormData
+        console.log('📦 Datos en FormData:');
+        for (const [key, value] of formData.entries()) {
+          console.log(`${key}:`, value instanceof File ? value.name : value);
+        }
 
         const response = await fetch('http://localhost:5001/api/laws', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(lawData)
+          body: formData
         });
 
         if (!response.ok) {

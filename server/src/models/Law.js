@@ -6,9 +6,27 @@ const voteSchema = new mongoose.Schema({
   abstenciones: { type: Number, default: 0 }
 });
 
+const documentSchema = new mongoose.Schema({
+  filename: String,
+  originalName: String,
+  path: String,
+  mimetype: String,
+  size: Number,
+  uploadedAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
 const lawSchema = new mongoose.Schema({
-  blockchainId: Number,
-  blockchainSessionId: Number,
+  blockchainId: {
+    type: Number,
+    required: true
+  },
+  blockchainSessionId: {
+    type: Number,
+    required: true
+  },
   title: String,
   description: String,
   author: String,
@@ -33,7 +51,15 @@ const lawSchema = new mongoose.Schema({
     default: Date.now
   },
   dateExpiry: Date,
-  documentLink: String,
+  // Documentos PDF
+  projectDocument: {
+    type: documentSchema,
+    default: null
+  },
+  signaturesDocument: {
+    type: documentSchema,
+    default: null
+  },
   votes: {
     type: voteSchema,
     default: () => ({})
@@ -45,6 +71,11 @@ const lawSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
+});
+
+// Eliminar cualquier índice existente
+lawSchema.indexes().forEach(index => {
+  lawSchema.index(index[0], { unique: false });
 });
 
 // Método para calcular días restantes

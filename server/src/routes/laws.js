@@ -3,6 +3,9 @@ import { body, validationResult } from 'express-validator';
 import Law from '../models/Law.js';
 import { ethers } from 'ethers';
 import { createRequire } from 'module';
+import upload from '../middleware/upload.js';
+import path from 'path';
+import fs from 'fs';
 const require = createRequire(import.meta.url);
 const contractJson = require('../VotacionLegislatura.json');
 
@@ -157,8 +160,16 @@ router.get('/:id', async (req, res) => {
 });
 
 // Crear nueva ley
-router.post('/', async (req, res) => {
+router.post('/', upload.fields([
+  { name: 'projectDocument', maxCount: 1 },
+  { name: 'signaturesDocument', maxCount: 1 }
+]), async (req, res) => {
   try {
+    console.log('📦 Datos recibidos en el backend:', {
+      body: req.body,
+      files: req.files ? Object.keys(req.files) : 'No files'
+    });
+
     const { 
       blockchainSessionId, 
       blockchainId, 
@@ -170,10 +181,50 @@ router.post('/', async (req, res) => {
       dateExpiry 
     } = req.body;
 
+    console.log('🔍 Valores extraídos:', {
+      blockchainSessionId,
+      blockchainId,
+      title,
+      hasDescription: !!description,
+      hasAuthor: !!author,
+      hasParty: !!party,
+      hasCategory: !!category,
+      hasDateExpiry: !!dateExpiry
+    });
+
+    // Validar que los IDs sean números válidos
+    const sessionId = parseInt(blockchainSessionId);
+    const lawId = parseInt(blockchainId);
+
+    console.log('🔢 IDs después de parse:', {
+      sessionId,
+      lawId,
+      originalSessionId: blockchainSessionId,
+      originalLawId: blockchainId
+    });
+
+    if (isNaN(sessionId) || isNaN(lawId)) {
+      console.error('❌ IDs inválidos:', { sessionId, lawId });
+      return res.status(400).json({ 
+        message: 'Error al crear la ley',
+        error: 'IDs de blockchain inválidos'
+      });
+    }
+
+    // Procesar archivos subidos
+    const files = req.files;
+    const projectDoc = files?.projectDocument?.[0];
+    const signaturesDoc = files?.signaturesDocument?.[0];
+
+    console.log('📄 Archivos procesados:', {
+      hasProjectDoc: !!projectDoc,
+      hasSignaturesDoc: !!signaturesDoc
+    });
+
     // Crear la ley en MongoDB
-    const law = new Law({
-      blockchainSessionId: Number(blockchainSessionId),
-      blockchainId: Number(blockchainId),
+    const lawData = {
+      blockchainSessionId: sessionId,
+      blockchainId: lawId,
       title,
       description,
       author,
@@ -186,21 +237,53 @@ router.post('/', async (req, res) => {
         contra: 0,
         abstenciones: 0,
         ausentes: 0
-      }
+      },
+      projectDocument: projectDoc ? {
+        filename: projectDoc.filename,
+        originalName: projectDoc.originalname,
+        path: projectDoc.path,
+        mimetype: projectDoc.mimetype,
+        size: projectDoc.size
+      } : null,
+      signaturesDocument: signaturesDoc ? {
+        filename: signaturesDoc.filename,
+        originalName: signaturesDoc.originalname,
+        path: signaturesDoc.path,
+        mimetype: signaturesDoc.mimetype,
+        size: signaturesDoc.size
+      } : null
+    };
+
+    console.log('📝 Datos a guardar en MongoDB:', {
+      blockchainSessionId: lawData.blockchainSessionId,
+      blockchainId: lawData.blockchainId,
+      title: lawData.title,
+      hasProjectDoc: !!lawData.projectDocument,
+      hasSignaturesDoc: !!lawData.signaturesDocument
     });
 
+    const law = new Law(lawData);
     await law.save();
+
     console.log('✅ Ley creada en MongoDB:', {
       id: law._id,
       blockchainId: law.blockchainId,
       blockchainSessionId: law.blockchainSessionId,
       title: law.title,
-      author: law.author
+      author: law.author,
+      hasProjectDoc: !!law.projectDocument,
+      hasSignaturesDoc: !!law.signaturesDocument
     });
     
     res.status(201).json(law);
   } catch (error) {
     console.error('❌ Error creando ley:', error);
+    console.error('Detalles del error:', {
+      name: error.name,
+      code: error.code,
+      keyPattern: error.keyPattern,
+      keyValue: error.keyValue
+    });
     res.status(500).json({ 
       message: 'Error al crear la ley',
       error: error.message 
@@ -379,5 +462,19 @@ async function verifyLawInBlockchain(sessionId, lawId) {
     throw new Error(`Error al verificar la ley en el blockchain: ${error.message}`);
   }
 }
+
+// Agregar ruta para servir archivos PDF
+router.get('/documents/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(process.cwd(), 'uploads', filename);
+  
+  // Verificar que el archivo existe
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ message: 'Archivo no encontrado' });
+  }
+
+  // Servir el archivo
+  res.sendFile(filePath);
+});
 
 export default router; 
