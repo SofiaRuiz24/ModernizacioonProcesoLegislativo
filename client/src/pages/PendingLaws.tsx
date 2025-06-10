@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { FileText, ThumbsUp, ThumbsDown, Clock, CalendarDays, User, Tag, BarChart, ExternalLink, Minus, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { FileText, ThumbsUp, ThumbsDown, Clock, CalendarDays, User, Tag, BarChart, ExternalLink, Minus, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { ethers } from 'ethers';
+import contractJson from "../../../server/src/VotacionLegislatura.json";
 import { 
   Dialog, 
   DialogContent, 
@@ -11,14 +13,24 @@ import {
   DialogFooter
 } from '@/components/ui/dialog';
 
+const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
+
 // Definimos un tipo para los estados posibles
 type LawStatus = 'En revisión' | 'Pendiente' | 'En debate';
 
 // Definición de estados con sus estilos
 const STATUS_STYLES: Record<LawStatus, { class: string; icon: JSX.Element }> = {
   'En revisión': { class: 'bg-yellow-100 text-yellow-800', icon: <Clock className="h-4 w-4 mr-1" /> },
-  'Pendiente': { class: 'bg-blue-100 text-blue-800', icon: <Clock className="h-4 w-4 mr-1" /> },
-  'En debate': { class: 'bg-orange-100 text-orange-800', icon: <Clock className="h-4 w-4 mr-1" /> },
+  'Pendiente': { class: 'bg-blue-100 text-blue-800', icon: <AlertCircle className="h-4 w-4 mr-1" /> },
+  'En debate': { class: 'bg-green-100 text-green-800', icon: <BarChart className="h-4 w-4 mr-1" /> }
+};
+
+// Definimos un tipo para el proveedor de MetaMask
+type MetaMaskProvider = {
+  request: (args: { method: string; params?: any[] }) => Promise<any>;
+  on: (event: string, callback: (...args: any[]) => void) => void;
+  removeListener: (event: string, callback: (...args: any[]) => void) => void;
+  isMetaMask?: boolean;
 };
 
 // Definimos el tipo para los votos
@@ -26,11 +38,14 @@ interface Votes {
   favor: number;
   contra: number;
   abstenciones: number;
+  ausentes: number;
 }
 
 // Definimos el tipo para las leyes
 interface PendingLaw {
   id: number;
+  blockchainId: number;
+  blockchainSessionId: number;
   title: string;
   author: string;
   party: string;
@@ -41,66 +56,272 @@ interface PendingLaw {
   description: string;
   documentLink: string;
   votes: Votes;
+  blockchainStatus: boolean;
 }
 
-// Datos ampliados de leyes pendientes
-const pendingLaws: PendingLaw[] = [
-  {
-    id: 1,
-    title: 'Ley de Protección Ambiental',
-    author: 'Juan Pérez',
-    party: 'Partido Verde',
-    category: 'Medio Ambiente',
-    status: 'En revisión',
-    datePresented: '2025-04-08',
-    dateExpiry: '2025-05-08',
-    description: 'Esta ley propone medidas para proteger el medio ambiente y promover prácticas sostenibles para la conservación de recursos naturales y la reducción de la contaminación.',
-    documentLink: '#',
-    votes: { favor: 12, contra: 8, abstenciones: 5 }
-  },
-  {
-    id: 2,
-    title: 'Reforma Educativa 2025',
-    author: 'María González',
-    party: 'Partido Progresista',
-    category: 'Educación',
-    status: 'Pendiente',
-    datePresented: '2025-04-07',
-    dateExpiry: '2025-05-07',
-    description: 'Propuesta de reforma integral del sistema educativo para mejorar la calidad de la enseñanza, actualizar los planes de estudio y garantizar el acceso equitativo a la educación.',
-    documentLink: '#',
-    votes: { favor: 10, contra: 10, abstenciones: 2 }
-  },
-  {
-    id: 3,
-    title: 'Ley de Transporte Público',
-    author: 'Carlos Rodríguez',
-    party: 'Partido Ciudadano',
-    category: 'Infraestructura',
-    status: 'En debate',
-    datePresented: '2025-04-06',
-    dateExpiry: '2025-05-06',
-    description: 'Proyecto para modernizar y mejorar el sistema de transporte público en la ciudad, incluyendo la renovación de la flota de vehículos y la implementación de tecnologías más eficientes.',
-    documentLink: '#',
-    votes: { favor: 15, contra: 7, abstenciones: 3 }
-  },
-];
+// Enum para los estados de voto del contrato
+enum EstadoVoto {
+  AUSENTE = 0,
+  PRESENTE = 1,
+  A_FAVOR = 2,
+  EN_CONTRA = 3,
+  ABSTENCION = 4
+}
 
 export function PendingLaws() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentAction, setCurrentAction] = useState<{ id: number; action: 'approve' | 'reject' | 'abstain' } | null>(null);
+  const [pendingLaws, setPendingLaws] = useState<PendingLaw[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+  const [userAddress, setUserAddress] = useState<string | null>(null);
+
+  // Función para verificar si MetaMask está disponible
+  const isMetaMaskAvailable = () => {
+    const ethereum = window.ethereum as MetaMaskProvider | undefined;
+    return typeof window !== 'undefined' && 
+           ethereum !== undefined && 
+           ethereum.isMetaMask === true;
+  };
+
+  // Función para obtener la sesión activa
+  const getActiveSession = async () => {
+    if (!isMetaMaskAvailable()) {
+      console.error('MetaMask no está disponible');
+      setError('Por favor, instala MetaMask para continuar');
+      return null;
+    }
+
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum as ethers.Eip1193Provider);
+      const contract = new ethers.Contract(contractAddress, contractJson.abi, provider);
+      const cantidadSesiones = await contract.obtenerCantidadSesiones();
+      console.log('Cantidad de sesiones:', cantidadSesiones.toString());
+      
+      if (cantidadSesiones === 0n) {
+        console.log('No hay sesiones creadas');
+        setActiveSessionId(null);
+        return null;
+      }
+      
+      // Buscar la última sesión activa
+      for (let i = Number(cantidadSesiones) - 1; i >= 0; i--) {
+        const sesion = await contract.sesiones(BigInt(i));
+        console.log(`Sesión ${i}:`, {
+          id: sesion.id.toString(),
+          fecha: sesion.fecha,
+          descripcion: sesion.descripcion,
+          activa: sesion.activa
+        });
+        
+        if (sesion.activa) {
+          console.log(`Sesión activa encontrada: ${i}`);
+          setActiveSessionId(i);
+          return i;
+        }
+      }
+      console.log('No se encontró ninguna sesión activa');
+      setActiveSessionId(null);
+      return null;
+    } catch (error) {
+      console.error('Error obteniendo sesión activa:', error);
+      setError('Error al obtener la sesión activa');
+      return null;
+    }
+  };
+
+  // Función para obtener las leyes de la sesión actual
+  const fetchLaws = async (sessionId: number) => {
+    if (!isMetaMaskAvailable()) {
+      setError('Por favor, instala MetaMask para continuar');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Primero obtener datos del backend
+      const backendResponse = await fetch(`http://localhost:5001/api/laws?sessionId=${sessionId}`);
+      if (!backendResponse.ok) {
+        throw new Error('Error al obtener las leyes del backend');
+      }
+      const mongoLaws = await backendResponse.json();
+      console.log('Leyes obtenidas del backend:', mongoLaws);
+
+      // Luego obtener datos de la blockchain
+      const provider = new ethers.BrowserProvider(window.ethereum as ethers.Eip1193Provider);
+      const contract = new ethers.Contract(contractAddress, contractJson.abi, provider);
+      const cantidadLeyes = await contract.obtenerCantidadLeyes(sessionId);
+      console.log('Cantidad de leyes en blockchain:', cantidadLeyes.toString());
+      
+      const laws: PendingLaw[] = [];
+      for (let i = 0; i < cantidadLeyes; i++) {
+        const ley = await contract.obtenerLey(sessionId, i);
+        const resultados = await contract.obtenerResultadosLey(sessionId, i);
+        
+        // Obtener el voto del usuario actual si está conectado
+        let userVote = null;
+        if (userAddress) {
+          const voto = await contract.obtenerVotoLegislador(sessionId, i, userAddress);
+          userVote = Number(voto);
+        }
+
+        // Buscar la ley correspondiente en los datos de MongoDB
+        const mongoLaw = mongoLaws.laws.find((l: any) => 
+          l.blockchainId === Number(ley.id) && 
+          l.blockchainSessionId === sessionId
+        );
+
+        console.log(`Ley ${i} en blockchain:`, {
+          id: ley.id.toString(),
+          titulo: ley.titulo,
+          activa: ley.activa,
+          votos: {
+            favor: resultados.votosAFavor.toString(),
+            contra: resultados.votosEnContra.toString(),
+            abstenciones: resultados.abstenciones.toString(),
+            ausentes: resultados.ausentes.toString()
+          },
+          mongoData: mongoLaw || 'No encontrada en MongoDB'
+        });
+
+        laws.push({
+          id: i,
+          blockchainId: Number(ley.id),
+          blockchainSessionId: sessionId,
+          title: ley.titulo,
+          description: ley.descripcion,
+          author: mongoLaw?.author || 'Legislador',
+          party: mongoLaw?.party || 'Partido',
+          category: mongoLaw?.category || 'Social',
+          status: 'En debate',
+          datePresented: mongoLaw?.datePresented || new Date().toISOString(),
+          dateExpiry: mongoLaw?.dateExpiry || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          documentLink: mongoLaw?.projectDocument ? 
+            `http://localhost:5001/api/laws/documents/${mongoLaw.projectDocument.filename}` : 
+            '#',
+          blockchainStatus: ley.activa,
+          votes: {
+            favor: Number(resultados.votosAFavor),
+            contra: Number(resultados.votosEnContra),
+            abstenciones: Number(resultados.abstenciones),
+            ausentes: Number(resultados.ausentes)
+          }
+        });
+      }
+
+      console.log('Leyes procesadas:', laws);
+      setPendingLaws(laws);
+    } catch (error) {
+      console.error('Error obteniendo leyes:', error);
+      setError('Error al obtener las leyes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Efecto para conectar wallet y obtener sesión activa
+  useEffect(() => {
+    if (!isMetaMaskAvailable()) {
+      setError('Por favor, instala MetaMask para continuar');
+      return;
+    }
+
+    const connectWallet = async () => {
+      try {
+        const ethereum = window.ethereum as MetaMaskProvider;
+        const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+        setUserAddress(accounts[0]);
+        
+        // Obtener sesión activa después de conectar la wallet
+        const sessionId = await getActiveSession();
+        if (sessionId !== null) {
+          await fetchLaws(sessionId);
+        }
+      } catch (error) {
+        console.error('Error conectando wallet:', error);
+        setError('Error al conectar la wallet');
+      }
+    };
+
+    connectWallet();
+
+    // Escuchar cambios de cuenta
+    const handleAccountsChanged = async (accounts: string[]) => {
+      setUserAddress(accounts[0] || null);
+      // Actualizar sesión activa cuando cambie la cuenta
+      if (accounts[0]) {
+        const sessionId = await getActiveSession();
+        if (sessionId !== null) {
+          await fetchLaws(sessionId);
+        }
+      }
+    };
+
+    const ethereum = window.ethereum as MetaMaskProvider;
+    ethereum.on('accountsChanged', handleAccountsChanged);
+
+    // Escuchar cambios en la red
+    const handleChainChanged = async () => {
+      // Recargar la página cuando cambie la red
+      window.location.reload();
+    };
+    ethereum.on('chainChanged', handleChainChanged);
+
+    return () => {
+      ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      ethereum.removeListener('chainChanged', handleChainChanged);
+    };
+  }, []);
 
   const handleVoteClick = (id: number, action: 'approve' | 'reject' | 'abstain') => {
+    if (!userAddress) {
+      setError('Por favor, conecta tu wallet para votar');
+      return;
+    }
     setCurrentAction({ id, action });
     setDialogOpen(true);
   };
 
-  const handleConfirmVote = () => {
-    if (currentAction) {
-      console.log(`Confirmed ${currentAction.action} on law ${currentAction.id}`);
-      // Aquí iría la lógica para procesar el voto confirmado
+  const handleConfirmVote = async () => {
+    if (!currentAction || !userAddress || !activeSessionId || !isMetaMaskAvailable()) return;
+
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum as ethers.Eip1193Provider);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(contractAddress, contractJson.abi, signer);
+
+      // Convertir acción a EstadoVoto
+      let estadoVoto: EstadoVoto;
+      switch (currentAction.action) {
+        case 'approve':
+          estadoVoto = EstadoVoto.A_FAVOR;
+          break;
+        case 'reject':
+          estadoVoto = EstadoVoto.EN_CONTRA;
+          break;
+        case 'abstain':
+          estadoVoto = EstadoVoto.ABSTENCION;
+          break;
+        default:
+          throw new Error('Acción de voto inválida');
+      }
+
+      // Registrar voto en el contrato
+      const tx = await contract.registrarVoto(
+        activeSessionId,
+        currentAction.id,
+        estadoVoto
+      );
+      await tx.wait();
+
+      // Actualizar la lista de leyes
+      await fetchLaws(activeSessionId);
+      setDialogOpen(false);
+    } catch (error) {
+      console.error('Error registrando voto:', error);
+      setError('Error al registrar el voto');
     }
-    setDialogOpen(false);
   };
 
   // Función para formatear la fecha
@@ -150,6 +371,52 @@ export function PendingLaws() {
         };
     }
   };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto py-8 px-4 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <span className="ml-2">Cargando leyes...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <p className="text-red-600">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!activeSessionId) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+            <p className="text-yellow-600">No hay una sesión activa en este momento.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (pendingLaws.length === 0) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-2xl font-bold mb-6">Orden del Día</h1>
+          <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
+            <p className="text-gray-600">No hay leyes pendientes en la sesión actual.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8 px-4">

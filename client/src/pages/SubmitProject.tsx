@@ -50,22 +50,37 @@ export function SubmitProject() {
   const [sesionActiva, setSesionActiva] = useState<number | null>(null);
 
   const actualizarSesionActiva = async () => {
-    if (!window.ethereum) return;
+    if (!window.ethereum) {
+      console.error('MetaMask no está disponible');
+      return;
+    }
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const contract = new ethers.Contract(contractAddress, contractJson.abi, provider);
       const cantidadSesiones = await contract.obtenerCantidadSesiones();
+      console.log('Cantidad de sesiones:', cantidadSesiones.toString());
       
       // Buscar la última sesión activa
       for (let i = Number(cantidadSesiones) - 1; i >= 0; i--) {
         const sesion = await contract.sesiones(BigInt(i));
+        console.log(`Sesión ${i}:`, {
+          id: sesion.id.toString(),
+          fecha: sesion.fecha,
+          descripcion: sesion.descripcion,
+          activa: sesion.activa
+        });
+        
         if (sesion.activa) {
+          console.log(`Sesión activa encontrada: ${i}`);
           setSesionActiva(i);
-          break;
+          return;
         }
       }
+      console.log('No se encontró ninguna sesión activa');
+      setSesionActiva(null);
     } catch (error) {
-      console.error('Error fetching active session:', error);
+      console.error('Error obteniendo sesión activa:', error);
+      setError('Error al obtener la sesión activa');
     }
   };
 
