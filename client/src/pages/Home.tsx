@@ -1,61 +1,117 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Search, ArrowRight, BookOpen, Users, FileText, Calendar, Download } from 'lucide-react';
+import { Search, ArrowRight, BookOpen, Users, FileText, Calendar, Download, Loader2 } from 'lucide-react';
+
+interface Law {
+  _id: string;
+  blockchainId: number;
+  blockchainSessionId: number;
+  title: string;
+  description: string;
+  author: string;
+  party: string;
+  category: string;
+  status: string;
+  finalStatus: string;
+  datePresented: string;
+  blockchainVotes: {
+    favor: number;
+    contra: number;
+    abstenciones: number;
+    ausentes: number;
+  };
+  projectDocument?: {
+    filename: string;
+    originalName: string;
+  };
+}
+
+interface Legislador {
+  _id: string;
+  name: string;
+  party: string;
+}
 
 export function Home() {
-  const approvedLaws = [
-    {
-      id: 1,
-      title: 'Ley de Protección del Agua',
-      number: '27.123',
-      date: '2025-03-15',
-      description: 'Establece el marco regulatorio para la gestión sustentable y la protección de los recursos hídricos.',
-      pdfUrl: '#'
-    },
-    {
-      id: 2,
-      title: 'Ley de Energías Renovables',
-      number: '27.124',
-      date: '2025-03-20',
-      description: 'Promueve el desarrollo y la utilización de fuentes de energía renovables.',
-      pdfUrl: '#'
-    },
-    {
-      id: 3,
-      title: 'Ley de Educación Digital',
-      number: '27.125',
-      date: '2025-03-25',
-      description: 'Establece el marco para la implementación de tecnologías digitales en el sistema educativo.',
-      pdfUrl: '#'
+  const [approvedLaws, setApprovedLaws] = useState<Law[]>([]);
+  const [latestNews, setLatestNews] = useState<Law[]>([]);
+  const [legisladores, setLegisladores] = useState<Legislador[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchLegisladores = async () => {
+    try {
+      const response = await fetch('http://localhost:5001/api/legislators');
+      if (response.ok) {
+        const data = await response.json();
+        setLegisladores(data);
+      }
+    } catch (error) {
+      console.error('Error fetching legisladores:', error);
     }
-  ];
-  
-  const latestNews = [
-    {
-      id: 1,
-      title: 'Proyecto de Ley de Energías Renovables',
-      date: '2025-04-08',
-      author: 'Diputada María González',
-      description: 'Nueva propuesta para impulsar el uso de energías limpias y establecer metas de reducción de emisiones para 2030.',
-      status: 'En debate'
-    },
-    {
-      id: 2,
-      title: 'Reforma del Sistema Educativo Digital',
-      date: '2025-04-05',
-      author: 'Senador Juan Pérez',
-      description: 'Iniciativa para modernizar la educación mediante la incorporación de tecnologías digitales y capacitación docente.',
-      status: 'Comisión'
-    },
-    {
-      id: 3,
-      title: 'Ley de Protección del Agua',
-      date: '2025-04-01',
-      author: 'Diputado Carlos Rodríguez',
-      description: 'Proyecto para garantizar la gestión sustentable de recursos hídricos y el acceso universal al agua potable.',
-      status: 'Aprobado'
+  };
+
+  const getLegisladorName = (authorId: string) => {
+    const legislador = legisladores.find(l => l._id === authorId);
+    return legislador ? legislador.name : 'Legislador';
+  };
+
+  useEffect(() => {
+    fetchLegisladores();
+    fetchHomeData();
+  }, []);
+
+  const fetchHomeData = async () => {
+    try {
+      setLoading(true);
+      
+      // Obtener leyes aprobadas
+      const approvedResponse = await fetch('http://localhost:5001/api/laws?finalStatus=Aprobada');
+      if (!approvedResponse.ok) throw new Error('Error al obtener leyes aprobadas');
+      const approvedData = await approvedResponse.json();
+      setApprovedLaws(approvedData.laws.slice(0, 3)); // Mostrar solo las 3 más recientes
+
+      // Obtener últimas leyes presentadas (todas las leyes ordenadas por fecha)
+      const latestResponse = await fetch('http://localhost:5001/api/laws');
+      if (!latestResponse.ok) throw new Error('Error al obtener últimas leyes');
+      const latestData = await latestResponse.json();
+      // Ordenar por fecha de presentación (más recientes primero)
+      const sortedLaws = latestData.laws.sort((a: Law, b: Law) => 
+        new Date(b.datePresented).getTime() - new Date(a.datePresented).getTime()
+      );
+      setLatestNews(sortedLaws.slice(0, 3)); // Mostrar solo las 3 más recientes
+
+    } catch (error) {
+      console.error('Error:', error);
+      setError(error instanceof Error ? error.message : 'Error al cargar los datos');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('es-AR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Aprobada':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100';
+      case 'Rechazada':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100';
+      case 'Pendiente':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100';
+      case 'En debate':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100';
+    }
+  };
 
   const statistics = [
     { number: '1,200+', label: 'Proyectos Presentados' },
@@ -81,6 +137,25 @@ export function Home() {
       description: 'Presenta tus propios proyectos de ley y sigue su proceso legislativo.'
     }
   ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#EDF2EF] dark:bg-[#121212] flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <span className="ml-2">Cargando...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#EDF2EF] dark:bg-[#121212] flex items-center justify-center">
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <p className="text-red-600">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#EDF2EF] dark:bg-[#121212]">
@@ -156,13 +231,6 @@ export function Home() {
                   {feature.title}
                 </h3>
                 <p className="text-[#557B97] dark:text-gray-300 mb-4">{feature.description}</p>
-                <Link
-                  to="/learn-more"
-                  className="inline-flex items-center text-[#1D2B3E] dark:text-blue-400 hover:text-[#557B97] dark:hover:text-blue-300"
-                >
-                  Saber más
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
               </div>
             ))}
           </div>
@@ -176,33 +244,46 @@ export function Home() {
             Leyes Sancionadas
           </h2>
           <div className="grid grid-cols-1 gap-6">
-            {approvedLaws.map((law) => (
-              <div key={law.id} className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-lg overflow-hidden border border-[#A7D3D4] dark:border-gray-800 hover:shadow-xl transition-shadow p-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-semibold text-[#1D2B3E] dark:text-white">{law.title}</h3>
-                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
-                        Ley N° {law.number}
-                      </span>
-                    </div>
-                    <p className="text-[#557B97] dark:text-gray-300 mb-4">{law.description}</p>
-                    <div className="flex items-center text-sm text-[#557B97] dark:text-gray-400">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Sancionada el {law.date}
-                    </div>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    className="flex items-center gap-2 text-[#1D2B3E] dark:text-white dark:border-gray-700 hover:bg-[#EDF2EF] dark:hover:bg-[#2a2a2a]"
-                    onClick={() => window.open(law.pdfUrl, '_blank')}
-                  >
-                    <Download className="h-4 w-4" />
-                    Descargar PDF
-                  </Button>
-                </div>
+            {approvedLaws.length === 0 ? (
+              <div className="text-center text-gray-500 dark:text-gray-400">
+                No hay leyes aprobadas para mostrar
               </div>
-            ))}
+            ) : (
+              approvedLaws.map((law) => (
+                <div key={law._id} className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-lg overflow-hidden border border-[#A7D3D4] dark:border-gray-800 hover:shadow-xl transition-shadow p-6">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-xl font-semibold text-[#1D2B3E] dark:text-white">
+                          {law.title}
+                        </h3>
+                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+                          Ley N° {law.blockchainId}
+                        </span>
+                      </div>
+                      <div 
+                        className="prose prose-sm max-w-none text-[#557B97] dark:text-gray-300 mb-4"
+                        dangerouslySetInnerHTML={{ __html: law.description }}
+                      />
+                      <div className="flex items-center text-sm text-[#557B97] dark:text-gray-400">
+                        <Calendar className="h-4 w-4 mr-2" />
+                        Sancionada el {formatDate(law.datePresented)}
+                      </div>
+                    </div>
+                    {law.projectDocument && (
+                      <Button 
+                        variant="outline" 
+                        className="flex items-center gap-2 text-[#1D2B3E] dark:text-white dark:border-gray-700 hover:bg-[#EDF2EF] dark:hover:bg-[#2a2a2a] ml-4"
+                        onClick={() => window.open(`http://localhost:5001/api/laws/documents/${law.projectDocument?.filename}`, '_blank')}
+                      >
+                        <Download className="h-4 w-4" />
+                        Descargar PDF
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -214,40 +295,37 @@ export function Home() {
             Últimos Proyectos Presentados
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {latestNews.map((news) => (
-              <div key={news.id} className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-lg overflow-hidden border border-[#A7D3D4] dark:border-gray-800 hover:shadow-xl transition-shadow">
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm text-[#557B97] dark:text-gray-400 flex items-center">
-                      <Calendar className="h-4 w-4 mr-1" />
-                      {news.date}
-                    </span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      news.status === 'Aprobado' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' :
-                      news.status === 'En debate' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100' :
-                      'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100'
-                    }`}>
-                      {news.status}
-                    </span>
-                  </div>
-                  <h3 className="text-xl font-semibold text-[#1D2B3E] dark:text-white mb-2">
-                    {news.title}
-                  </h3>
-                  <p className="text-[#557B97] dark:text-gray-300 text-sm mb-4">
-                    {news.description}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[#557B97] dark:text-gray-400">{news.author}</span>
-                    <Link to={`/projects/${news.id}`}>
-                      <Button variant="ghost" className="text-[#1D2B3E] dark:text-white hover:text-[#557B97] dark:hover:text-blue-300">
-                        Ver más
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                    </Link>
+            {latestNews.length === 0 ? (
+              <div className="col-span-full text-center text-gray-500 dark:text-gray-400">
+                No hay proyectos recientes para mostrar
+              </div>
+            ) : (
+              latestNews.map((law) => (
+                <div key={law._id} className="bg-white dark:bg-[#1a1a1a] rounded-lg shadow-lg overflow-hidden border border-[#A7D3D4] dark:border-gray-800 hover:shadow-xl transition-shadow">
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-sm text-[#557B97] dark:text-gray-400 flex items-center">
+                        <Calendar className="h-4 w-4 mr-1" />
+                        {formatDate(law.datePresented)}
+                      </span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(law.status)}`}>
+                        {law.status}
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-semibold text-[#1D2B3E] dark:text-white mb-2">
+                      {law.title}
+                    </h3>
+                    <div 
+                      className="prose prose-sm max-w-none text-[#557B97] dark:text-gray-300 text-sm mb-4"
+                      dangerouslySetInnerHTML={{ __html: law.description }}
+                    />
+                    <div className="text-sm text-[#557B97] dark:text-gray-400">
+                      {getLegisladorName(law.author)}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </section>
