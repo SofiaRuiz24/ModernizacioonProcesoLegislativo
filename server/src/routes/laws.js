@@ -598,64 +598,66 @@ router.get('/documents/:filename', (req, res) => {
 router.post('/finalize-session/:sessionId', async (req, res) => {
   try {
     const sessionId = Number(req.params.sessionId);
-    console.log('🔄 Finalizando sesión:', sessionId);
+    console.log('🔄 Actualizando estados de leyes en MongoDB para sesión:', sessionId);
 
-    // 1. Finalizar sesión en blockchain
-    if (!process.env.PRIVATE_KEY) {
-      throw new Error('No hay una clave privada configurada para el backend');
-    }
-
-    try {
-      const tx = await contract.finalizarSesion(sessionId);
-      console.log('✅ Transacción enviada:', tx.hash);
-      await tx.wait();
-      console.log('✅ Sesión finalizada en blockchain');
-    } catch (error) {
-      console.error('❌ Error finalizando sesión en blockchain:', error);
-      throw new Error('Error al finalizar la sesión en blockchain: ' + error.message);
-    }
-
-    // 2. Obtener todas las leyes de la sesión
+    // Obtener todas las leyes de la sesión
     const laws = await Law.find({ blockchainSessionId: sessionId });
     console.log(`📊 Procesando ${laws.length} leyes de la sesión`);
 
-    // 3. Actualizar estado de cada ley
+    // Actualizar estado de cada ley
     for (const law of laws) {
-      const { favor, contra, abstenciones } = law.blockchainVotes;
-      const totalVotos = favor + contra + abstenciones;
-      
-      // Calcular resultado
-      let finalStatus;
-      if (totalVotos === 0) {
-        finalStatus = 'Pendiente';
-      } else if (favor > contra) {
-        finalStatus = 'Aprobada';
-      } else {
-        finalStatus = 'Rechazada';
-      }
+      try {
+        // Calcular resultado final basado en los votos actuales
+        const { favor, contra, abstenciones } = law.blockchainVotes;
+        const totalVotos = favor + contra + abstenciones;
+        
+        let finalStatus;
+        if (totalVotos === 0) {
+          finalStatus = 'Pendiente';
+        } else if (favor > contra) {
+          finalStatus = 'Aprobada';
+        } else if (favor < contra) {
+          finalStatus = 'Rechazada';
+        } else {
+          // En caso de empate, se considera rechazada
+          finalStatus = 'Rechazada';
+        }
 
-      // Actualizar ley
-      law.status = 'Finalizada';
-      law.finalStatus = finalStatus;
-      law.blockchainStatus = false;
-      
-      await law.save();
-      console.log(`✅ Ley ${law.blockchainId} actualizada:`, {
-        titulo: law.title,
-        votos: law.blockchainVotes,
-        estadoFinal: finalStatus
-      });
+        // Actualizar estados de la ley
+        law.status = 'Finalizada';
+        law.finalStatus = finalStatus;
+        law.blockchainStatus = false;
+        
+        // Guardar cambios
+        await law.save();
+        console.log(`✅ Ley ${law.blockchainId} actualizada:`, {
+          titulo: law.title,
+          votos: law.blockchainVotes,
+          estadoFinal: finalStatus,
+          status: law.status
+        });
+      } catch (error) {
+        console.error(`❌ Error actualizando ley ${law.blockchainId}:`, error);
+        // Continuar con la siguiente ley aunque haya error
+      }
     }
 
     res.json({
-      message: 'Sesión finalizada correctamente',
-      leyesActualizadas: laws.length
+      message: 'Estados de leyes actualizados correctamente',
+      leyesActualizadas: laws.length,
+      detalles: laws.map(law => ({
+        id: law.blockchainId,
+        titulo: law.title,
+        votos: law.blockchainVotes,
+        estadoFinal: law.finalStatus,
+        status: law.status
+      }))
     });
 
   } catch (error) {
-    console.error('❌ Error finalizando sesión:', error);
+    console.error('❌ Error actualizando estados de leyes:', error);
     res.status(500).json({ 
-      message: 'Error al finalizar la sesión',
+      message: 'Error al actualizar estados de leyes',
       error: error.message 
     });
   }

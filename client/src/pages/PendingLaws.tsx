@@ -18,13 +18,16 @@ import { SessionTimer } from '@/components/SessionTimer';
 const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
 
 // Definimos un tipo para los estados posibles
-type LawStatus = 'En revisión' | 'Pendiente' | 'En debate';
+type LawStatus = 'En revisión' | 'Pendiente' | 'En debate' | 'Finalizada' | 'Aprobada' | 'Rechazada';
 
 // Definición de estados con sus estilos
 const STATUS_STYLES: Record<LawStatus, { class: string; icon: JSX.Element }> = {
   'En revisión': { class: 'bg-yellow-100 text-yellow-800', icon: <Clock className="h-4 w-4 mr-1" /> },
   'Pendiente': { class: 'bg-blue-100 text-blue-800', icon: <AlertCircle className="h-4 w-4 mr-1" /> },
-  'En debate': { class: 'bg-green-100 text-green-800', icon: <BarChart className="h-4 w-4 mr-1" /> }
+  'En debate': { class: 'bg-green-100 text-green-800', icon: <BarChart className="h-4 w-4 mr-1" /> },
+  'Finalizada': { class: 'bg-gray-100 text-gray-800', icon: <CheckCircle className="h-4 w-4 mr-1" /> },
+  'Aprobada': { class: 'bg-green-100 text-green-800', icon: <CheckCircle className="h-4 w-4 mr-1" /> },
+  'Rechazada': { class: 'bg-red-100 text-red-800', icon: <XCircle className="h-4 w-4 mr-1" /> }
 };
 
 // Definimos un tipo para el proveedor de MetaMask
@@ -53,6 +56,7 @@ interface PendingLaw {
   party: string;
   category: string;
   status: LawStatus;
+  finalStatus: LawStatus;
   datePresented: string;
   dateExpiry: string;
   description: string;
@@ -207,7 +211,8 @@ export function PendingLaws() {
           author: mongoLaw?.author || 'Legislador',
           party: mongoLaw?.party || 'Partido',
           category: mongoLaw?.category || 'Social',
-          status: 'En debate',
+          status: mongoLaw?.status || (ley.activa ? 'En debate' : 'Finalizada'),
+          finalStatus: mongoLaw?.finalStatus || 'Pendiente',
           datePresented: mongoLaw?.datePresented || new Date().toISOString(),
           dateExpiry: mongoLaw?.dateExpiry || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
           documentLink: mongoLaw?.projectDocument ? 
@@ -492,17 +497,46 @@ export function PendingLaws() {
       const signer = await provider.getSigner();
       const contractInstance = new ethers.Contract(contractAddress, contractJson.abi, signer);
 
-      // Finalizar sesión
+      // Finalizar sesión en blockchain
       console.log('Finalizando sesión:', activeSessionId);
       const tx = await contractInstance.finalizarSesion(BigInt(activeSessionId));
       await tx.wait();
       
+      // Actualizar estados en MongoDB
+      console.log('Actualizando estados en MongoDB...');
+      const response = await fetch(`http://localhost:5001/api/laws/finalize-session/${activeSessionId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al actualizar estados en MongoDB');
+      }
+
+      const result = await response.json();
+      console.log('Resultado de finalización:', result);
+      
       setSuccess('Sesión finalizada correctamente');
+      
+      // Actualizar la lista de leyes con los nuevos estados
       await fetchLaws(activeSessionId);
+      
+      // Limpiar sesión activa
       setActiveSessionId(null);
+      
+      // Mostrar resumen de resultados
+      const resumen = result.detalles.map((ley: any) => 
+        `${ley.titulo}: ${ley.estadoFinal} (${ley.votos.favor} a favor, ${ley.votos.contra} en contra)`
+      ).join('\n');
+      
+      console.log('Resumen de resultados:', resumen);
+      
     } catch (error) {
       console.error('Error finalizando sesión:', error);
-      setError('Error al finalizar la sesión');
+      setError(error instanceof Error ? error.message : 'Error al finalizar la sesión');
     } finally {
       setFinalizingSession(false);
     }
@@ -686,7 +720,7 @@ export function PendingLaws() {
                     </h2>
                     <span className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full ${STATUS_STYLES[law.status]?.class}`}>
                       {STATUS_STYLES[law.status]?.icon}
-                      {law.status}
+                      {law.status === 'Finalizada' ? law.finalStatus : law.status}
                     </span>
                   </div>
                   
