@@ -410,7 +410,31 @@ export function PendingLaws() {
       const receipt = await tx.wait();
       console.log('Transacción confirmada:', receipt);
 
-      // 8. Actualizar la lista de leyes
+      // 8. Sincronizar con MongoDB
+      try {
+        console.log('Sincronizando votos con MongoDB...');
+        const syncResponse = await fetch(`http://localhost:5001/api/laws/sync/${activeSessionId}/${currentAction.id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            action: currentAction.action // 'approve', 'reject', o 'abstain'
+          })
+        });
+
+        if (!syncResponse.ok) {
+          throw new Error('Error al sincronizar con MongoDB');
+        }
+
+        const syncedLaw = await syncResponse.json();
+        console.log('Ley sincronizada en MongoDB:', syncedLaw);
+      } catch (syncError) {
+        console.error('Error sincronizando con MongoDB:', syncError);
+        // No lanzamos el error para no interrumpir el flujo, pero lo registramos
+      }
+
+      // 9. Actualizar la lista de leyes
       await fetchLaws(activeSessionId);
       setSuccess('Voto registrado exitosamente');
 

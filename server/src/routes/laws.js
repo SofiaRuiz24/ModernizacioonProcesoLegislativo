@@ -25,13 +25,57 @@ if (!contractAddress || !rpcUrl) {
 
 // Crear provider y contrato
 const provider = new ethers.JsonRpcProvider(rpcUrl);
-const contract = new ethers.Contract(contractAddress, contractJson.abi, provider);
+const wallet = new ethers.Wallet(process.env.PRIVATE_KEY || '', provider);
+const contract = new ethers.Contract(contractAddress, contractJson.abi, wallet);
 
 // Función auxiliar para sincronizar una ley del blockchain
 async function syncLawFromBlockchain(sessionId, lawId) {
   try {
-    const law = await contract.obtenerLey(sessionId, lawId);
-    const resultados = await contract.obtenerResultadosLey(sessionId, lawId);
+    console.log('🔄 Sincronizando ley desde blockchain:', { 
+      sessionId: Number(sessionId), 
+      lawId: Number(lawId) 
+    });
+    
+    // Verificar que tenemos una wallet configurada
+    if (!process.env.PRIVATE_KEY) {
+      console.error('❌ No hay una clave privada configurada para el backend');
+      throw new Error('Configuración incompleta del backend');
+    }
+
+    // Convertir a números regulares
+    const sessionIdNum = Number(sessionId);
+    const lawIdNum = Number(lawId);
+
+    // Primero verificar si la sesión y la ley existen
+    const cantidadLeyes = await contract.obtenerCantidadLeyes(sessionIdNum);
+    console.log('📊 Cantidad de leyes en la sesión:', cantidadLeyes.toString());
+
+    if (lawIdNum >= Number(cantidadLeyes)) {
+      console.error('❌ La ley no existe en esta sesión:', {
+        sessionId: sessionIdNum,
+        lawId: lawIdNum,
+        totalLeyes: cantidadLeyes.toString()
+      });
+      throw new Error(`La ley ${lawIdNum} no existe en la sesión ${sessionIdNum}`);
+    }
+
+    // Obtener datos de la ley y resultados usando el contrato con wallet
+    const law = await contract.obtenerLey(sessionIdNum, lawIdNum);
+    const resultados = await contract.obtenerResultadosLey(sessionIdNum, lawIdNum);
+    
+    console.log('📊 Datos obtenidos del blockchain:', {
+      ley: {
+        id: law.id.toString(),
+        titulo: law.titulo,
+        activa: law.activa
+      },
+      votos: {
+        favor: resultados.votosAFavor.toString(),
+        contra: resultados.votosEnContra.toString(),
+        abstenciones: resultados.abstenciones.toString(),
+        ausentes: resultados.ausentes.toString()
+      }
+    });
     
     // Buscar si la ley ya existe
     let existingLaw = await Law.findOne({ 
@@ -40,19 +84,45 @@ async function syncLawFromBlockchain(sessionId, lawId) {
     });
 
     if (existingLaw) {
+      console.log('📝 Actualizando ley existente:', {
+        id: existingLaw._id,
+        blockchainId: existingLaw.blockchainId,
+        blockchainSessionId: existingLaw.blockchainSessionId
+      });
+
       // Actualizar ley existente
       existingLaw.title = law.titulo;
       existingLaw.description = law.descripcion;
       existingLaw.blockchainStatus = law.activa;
-      existingLaw.blockchainVotes = {
+      
+      // Actualizar votos
+      const nuevosVotos = {
         favor: Number(resultados.votosAFavor),
         contra: Number(resultados.votosEnContra),
         abstenciones: Number(resultados.abstenciones),
         ausentes: Number(resultados.ausentes)
       };
+
+      // Solo actualizar si hay cambios en los votos
+      if (
+        existingLaw.blockchainVotes.favor !== nuevosVotos.favor ||
+        existingLaw.blockchainVotes.contra !== nuevosVotos.contra ||
+        existingLaw.blockchainVotes.abstenciones !== nuevosVotos.abstenciones ||
+        existingLaw.blockchainVotes.ausentes !== nuevosVotos.ausentes
+      ) {
+        console.log('📊 Actualizando votos:', {
+          anteriores: existingLaw.blockchainVotes,
+          nuevos: nuevosVotos
+        });
+        existingLaw.blockchainVotes = nuevosVotos;
+      }
+
       await existingLaw.save();
+      console.log('✅ Ley actualizada en MongoDB');
       return existingLaw;
     } else {
+      console.log('📝 Creando nueva ley en MongoDB');
+      
       // Crear nueva ley
       const newLaw = new Law({
         blockchainId: Number(lawId),
@@ -71,11 +141,16 @@ async function syncLawFromBlockchain(sessionId, lawId) {
         },
         dateExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 días por defecto
       });
+      
       await newLaw.save();
+      console.log('✅ Nueva ley creada en MongoDB');
       return newLaw;
     }
   } catch (error) {
-    console.error('Error syncing law from blockchain:', error);
+    console.error('❌ Error syncing law from blockchain:', error);
+    if (error.message.includes('No hay una clave privada configurada')) {
+      throw new Error('El backend no está configurado correctamente. Contacta al administrador.');
+    }
     throw error;
   }
 }
@@ -101,12 +176,54 @@ router.post('/sync/session/:sessionId', async (req, res) => {
 // Sincronizar una ley específica
 router.post('/sync/:sessionId/:lawId', async (req, res) => {
   try {
-    const sessionId = BigInt(req.params.sessionId);
-    const lawId = BigInt(req.params.lawId);
-    const ley = await syncLawFromBlockchain(sessionId, lawId);
-    res.json(ley);
+    const sessionId = Number(req.params.sessionId);
+    const lawId = Number(req.params.lawId);
+    const { action } = req.body; // 'approve', 'reject', o 'abstain'
+
+    console.log('📝 Actualizando votos en MongoDB:', {
+      sessionId,
+      lawId,
+      action
+    });
+
+    // Buscar la ley en MongoDB
+    const law = await Law.findOne({ 
+      blockchainId: lawId,
+      blockchainSessionId: sessionId
+    });
+
+    if (!law) {
+      console.error('❌ Ley no encontrada en MongoDB:', { sessionId, lawId });
+      return res.status(404).json({ message: 'Ley no encontrada en la base de datos' });
+    }
+
+    // Actualizar los votos según la acción
+    switch (action) {
+      case 'approve':
+        law.blockchainVotes.favor += 1;
+        break;
+      case 'reject':
+        law.blockchainVotes.contra += 1;
+        break;
+      case 'abstain':
+        law.blockchainVotes.abstenciones += 1;
+        break;
+      default:
+        console.error('❌ Acción de voto inválida:', action);
+        return res.status(400).json({ message: 'Acción de voto inválida' });
+    }
+
+    // Guardar los cambios
+    await law.save();
+    console.log('✅ Votos actualizados en MongoDB:', {
+      ley: law.title,
+      votos: law.blockchainVotes
+    });
+
+    res.json(law);
   } catch (error) {
-    res.status(500).json({ message: 'Error sincronizando ley', error: error.message });
+    console.error('❌ Error actualizando votos:', error);
+    res.status(500).json({ message: 'Error al actualizar los votos', error: error.message });
   }
 });
 
