@@ -37,6 +37,24 @@ interface ProyectoLey {
   activa: boolean;
 }
 
+// Definir el tipo para las categorías
+type CategoryOption = {
+  value: string;
+  label: string;
+};
+
+// Agregar constante de categorías
+const CATEGORIAS: CategoryOption[] = [
+  { value: 'Social', label: 'Social' },
+  { value: 'Economica', label: 'Económica' },
+  { value: 'Ambiental', label: 'Ambiental' },
+  { value: 'Educativa', label: 'Educativa' },
+  { value: 'Salud', label: 'Salud' },
+  { value: 'Seguridad', label: 'Seguridad' },
+  { value: 'Infraestructura', label: 'Infraestructura' },
+  { value: 'Tecnologia', label: 'Tecnología' }
+];
+
 export function SubmitProject() {
   const [isUsingEditor, setIsUsingEditor] = useState(true);
   const [signatures, setSignatures] = useState<File | null>(null);
@@ -48,6 +66,7 @@ export function SubmitProject() {
   const [selectedLegislador, setSelectedLegislador] = useState<string>('');
   const [proyectosLey, setProyectosLey] = useState<ProyectoLey[]>([]);
   const [sesionActiva, setSesionActiva] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('Social');
 
   const actualizarSesionActiva = async () => {
     if (!window.ethereum) {
@@ -270,7 +289,7 @@ export function SubmitProject() {
         formData.append('description', nuevaLey.descripcion);
         formData.append('author', selectedLegislador);
         formData.append('party', 'Partido'); // TODO: Obtener del legislador seleccionado
-        formData.append('category', 'Social'); // TODO: Hacer seleccionable
+        formData.append('category', selectedCategory);
         formData.append('dateExpiry', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString());
 
         // Agregar archivos si existen
@@ -388,6 +407,18 @@ export function SubmitProject() {
                         placeholder="Ingrese el nombre del proyecto" 
                         required 
                         className="h-10 border-gray-200 focus:border-gray-300 focus:ring-gray-200" 
+                      />
+                    </div>
+
+                    {/* Categoría del Proyecto */}
+                    <div className="space-y-2">
+                      <Label htmlFor="category" className="text-sm font-medium">Categoría</Label>
+                      <Select
+                        id="category"
+                        value={selectedCategory}
+                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        options={CATEGORIAS}
+                        className="w-full h-10 border-gray-200 focus:border-gray-300 focus:ring-gray-200"
                       />
                     </div>
 

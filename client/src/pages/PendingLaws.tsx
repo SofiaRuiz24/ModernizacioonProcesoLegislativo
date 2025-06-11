@@ -552,14 +552,6 @@ export function PendingLaws() {
     });
   };
 
-  // Calcular días restantes
-  const getDaysRemaining = (dateExpiry: string) => {
-    const today = new Date();
-    const expiryDate = new Date(dateExpiry);
-    const diffTime = expiryDate.getTime() - today.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
-
   // Obtener información y estilos según la acción
   const getActionInfo = (action: 'approve' | 'reject' | 'abstain') => {
     switch (action) {
@@ -762,19 +754,6 @@ export function PendingLaws() {
                           <span className="font-medium">Presentado:</span>
                           <span className="ml-2">{formatDate(law.datePresented)}</span>
                         </p>
-                        
-                        <p className="text-sm flex items-center text-gray-600 dark:text-gray-300">
-                          <Clock className="h-4 w-4 mr-2 text-gray-400" />
-                          <span className="font-medium">Vence:</span>
-                          <span className="ml-2">{formatDate(law.dateExpiry)}</span>
-                          <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-medium ${
-                            getDaysRemaining(law.dateExpiry) <= 5 
-                              ? 'bg-red-100 text-red-800' 
-                              : 'bg-blue-100 text-blue-800'
-                          }`}>
-                            {getDaysRemaining(law.dateExpiry)} días restantes
-                          </span>
-                        </p>
                       </div>
                     </div>
                     
@@ -801,31 +780,41 @@ export function PendingLaws() {
                 
                 {/* Sección de botones - Separada con línea */}
                 <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
-                  <div className="flex items-center justify-center gap-4">
-                    <Button
-                      onClick={() => handleVoteClick(law.id, 'approve')}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-sm hover:shadow-md transition-all py-5"
-                    >
-                      <ThumbsUp className="h-5 w-5 mr-2" />
-                      Aprobar
-                    </Button>
-                    
-                    <Button
-                      onClick={() => handleVoteClick(law.id, 'reject')}
-                      className="flex-1 bg-red-600 hover:bg-red-700 text-white shadow-sm hover:shadow-md transition-all py-5"
-                    >
-                      <ThumbsDown className="h-5 w-5 mr-2" />
-                      Rechazar
-                    </Button>
-                    
-                    <Button
-                      onClick={() => handleVoteClick(law.id, 'abstain')}
-                      className="flex-1 bg-gray-500 hover:bg-gray-600 text-white shadow-sm hover:shadow-md transition-all py-5"
-                    >
-                      <Minus className="h-5 w-5 mr-2" />
-                      Abstención
-                    </Button>
-                  </div>
+                  {law.status !== 'Finalizada' && law.blockchainStatus ? (
+                    <div className="flex items-center justify-center gap-4">
+                      <Button
+                        onClick={() => handleVoteClick(law.id, 'approve')}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-sm hover:shadow-md transition-all py-5"
+                      >
+                        <ThumbsUp className="h-5 w-5 mr-2" />
+                        Aprobar
+                      </Button>
+                      
+                      <Button
+                        onClick={() => handleVoteClick(law.id, 'reject')}
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white shadow-sm hover:shadow-md transition-all py-5"
+                      >
+                        <ThumbsDown className="h-5 w-5 mr-2" />
+                        Rechazar
+                      </Button>
+                      
+                      <Button
+                        onClick={() => handleVoteClick(law.id, 'abstain')}
+                        className="flex-1 bg-gray-500 hover:bg-gray-600 text-white shadow-sm hover:shadow-md transition-all py-5"
+                      >
+                        <Minus className="h-5 w-5 mr-2" />
+                        Abstención
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-center py-2">
+                      <p className="text-gray-600 dark:text-gray-400">
+                        {law.status === 'Finalizada' 
+                          ? `Esta ley ha sido ${law.finalStatus.toLowerCase()}`
+                          : 'Esta ley ya no está activa para votación'}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </Card>
             ))}
