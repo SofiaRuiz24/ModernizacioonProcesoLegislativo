@@ -74,6 +74,12 @@ enum EstadoVoto {
   ABSTENCION = 4
 }
 
+interface Legislador {
+  _id: string;
+  name: string;
+  party: string;
+}
+
 export function PendingLaws() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentAction, setCurrentAction] = useState<{ id: number; action: 'approve' | 'reject' | 'abstain' } | null>(null);
@@ -85,6 +91,7 @@ export function PendingLaws() {
   const [success, setSuccess] = useState<string | null>(null);
   const [finalizingSession, setFinalizingSession] = useState(false);
   const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
+  const [legisladores, setLegisladores] = useState<Legislador[]>([]);
 
   // Función para verificar si MetaMask está disponible
   const isMetaMaskAvailable = () => {
@@ -291,6 +298,29 @@ export function PendingLaws() {
       ethereum.removeListener('chainChanged', handleChainChanged);
     };
   }, []);
+
+  // Agregar función para obtener legisladores
+  const fetchLegisladores = async () => {
+    try {
+      const response = await fetch('http://localhost:5001/api/legislators');
+      if (response.ok) {
+        const data = await response.json();
+        setLegisladores(data);
+      }
+    } catch (error) {
+      console.error('Error fetching legisladores:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchLegisladores();
+  }, []);
+
+  // Función para obtener el nombre del legislador
+  const getLegisladorName = (authorId: string) => {
+    const legislador = legisladores.find(l => l._id === authorId);
+    return legislador ? legislador.name : 'Legislador';
+  };
 
   const handleVoteClick = (id: number, action: 'approve' | 'reject' | 'abstain') => {
     console.log('handleVoteClick - Valores iniciales:', {
@@ -501,7 +531,7 @@ export function PendingLaws() {
       console.log('Finalizando sesión:', activeSessionId);
       const tx = await contractInstance.finalizarSesion(BigInt(activeSessionId));
       await tx.wait();
-      
+
       // Actualizar estados en MongoDB
       console.log('Actualizando estados en MongoDB...');
       const response = await fetch(`http://localhost:5001/api/laws/finalize-session/${activeSessionId}`, {
@@ -700,112 +730,117 @@ export function PendingLaws() {
               )}
             </div>
           </div>
-          
-          <div className="space-y-8">
-            {pendingLaws.map((law) => (
-              <Card key={law.id} className="overflow-hidden border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
-                <div className="p-6">
-                  {/* Encabezado: Título y estado */}
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold text-gray-800 dark:text-white">
-                      {law.title}
-                    </h2>
-                    <span className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full ${STATUS_STYLES[law.status]?.class}`}>
-                      {STATUS_STYLES[law.status]?.icon}
+        
+        <div className="space-y-8">
+          {pendingLaws.map((law) => (
+            <Card key={law.id} className="overflow-hidden border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
+              <div className="p-6">
+                {/* Encabezado: Título y estado */}
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white">
+                    {law.title}
+                  </h2>
+                  <span className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full ${STATUS_STYLES[law.status]?.class}`}>
+                    {STATUS_STYLES[law.status]?.icon}
                       {law.status === 'Finalizada' ? law.finalStatus : law.status}
-                    </span>
-                  </div>
-                  
-                  {/* Información principal */}
-                  <div className="mb-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-                      {/* Columna izquierda - Info básica */}
-                      <div className="space-y-2">
-                        <p className="text-sm flex items-center text-gray-600 dark:text-gray-300">
-                          <User className="h-4 w-4 mr-2 text-gray-400" />
-                          <span className="font-medium">Autor:</span>
-                          <span className="ml-2 text-blue-600 dark:text-blue-400">{law.author}</span>
-                          <span className="ml-2 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded text-xs">
-                            {law.party}
-                          </span>
-                        </p>
-                        
-                        <p className="text-sm flex items-center text-gray-600 dark:text-gray-300">
-                          <Tag className="h-4 w-4 mr-2 text-gray-400" />
-                          <span className="font-medium">Categoría:</span>
-                          <span className="ml-2">{law.category}</span>
-                        </p>
-                        
-                        <p className="text-sm flex items-center text-gray-600 dark:text-gray-300">
-                          <BarChart className="h-4 w-4 mr-2 text-gray-400" />
-                          <span className="font-medium">Votos actuales:</span>
-                          <span className="ml-2 text-green-600">{law.votes.favor} a favor</span>
-                          <span className="mx-1">•</span>
-                          <span className="text-red-600">{law.votes.contra} en contra</span>
-                          <span className="mx-1">•</span>
-                          <span className="text-gray-500">{law.votes.abstenciones} abstenciones</span>
-                        </p>
-                      </div>
+                  </span>
+                </div>
+                
+                {/* Información principal */}
+                <div className="mb-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                    {/* Columna izquierda - Info básica */}
+                    <div className="space-y-2">
+                      <p className="text-sm flex items-center text-gray-600 dark:text-gray-300">
+                        <User className="h-4 w-4 mr-2 text-gray-400" />
+                        <span className="font-medium">Autor:</span>
+                        <span className="ml-2 text-blue-600 dark:text-blue-400">
+                          {getLegisladorName(law.author)}
+                        </span>
+                        <span className="ml-2 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded text-xs">
+                          {law.party}
+                        </span>
+                      </p>
                       
-                      {/* Columna derecha - Fechas */}
-                      <div className="space-y-2">
-                        <p className="text-sm flex items-center text-gray-600 dark:text-gray-300">
-                          <CalendarDays className="h-4 w-4 mr-2 text-gray-400" />
-                          <span className="font-medium">Presentado:</span>
-                          <span className="ml-2">{formatDate(law.datePresented)}</span>
-                        </p>
-                      </div>
+                      <p className="text-sm flex items-center text-gray-600 dark:text-gray-300">
+                        <Tag className="h-4 w-4 mr-2 text-gray-400" />
+                        <span className="font-medium">Categoría:</span>
+                        <span className="ml-2">{law.category}</span>
+                      </p>
+                      
+                      <p className="text-sm flex items-center text-gray-600 dark:text-gray-300">
+                        <BarChart className="h-4 w-4 mr-2 text-gray-400" />
+                        <span className="font-medium">Votos actuales:</span>
+                        <span className="ml-2 text-green-600">{law.votes.favor} a favor</span>
+                        <span className="mx-1">•</span>
+                        <span className="text-red-600">{law.votes.contra} en contra</span>
+                        <span className="mx-1">•</span>
+                        <span className="text-gray-500">{law.votes.abstenciones} abstenciones</span>
+                      </p>
                     </div>
                     
-                    {/* Descripción */}
-                    <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-md">
-                      <p className="text-gray-700 dark:text-gray-300">{law.description}</p>
-                    </div>
+                    {/* Columna derecha - Fechas */}
+                    <div className="space-y-2">
+                      <p className="text-sm flex items-center text-gray-600 dark:text-gray-300">
+                        <CalendarDays className="h-4 w-4 mr-2 text-gray-400" />
+                        <span className="font-medium">Presentado:</span>
+                        <span className="ml-2">{formatDate(law.datePresented)}</span>
+                      </p>
+                      </div>
                   </div>
                   
-                  {/* Barra de documento - Mejorada */}
-                  <div className="flex items-center justify-end mb-6">
-                    <a 
-                      href={law.documentLink} 
-                      className="group flex items-center px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <FileText className="h-4 w-4 mr-2 group-hover:animate-pulse" />
-                      Ver documento completo
-                      <ExternalLink className="h-3 w-3 ml-2 group-hover:translate-x-1 transition-transform" />
-                    </a>
+                  {/* Descripción */}
+                  <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-md">
+                    <div 
+                      className="text-gray-700 dark:text-gray-300 prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{ __html: law.description }}
+                    />
                   </div>
                 </div>
                 
-                {/* Sección de botones - Separada con línea */}
-                <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
+                {/* Barra de documento - Mejorada */}
+                <div className="flex items-center justify-end mb-6">
+                  <a 
+                    href={law.documentLink} 
+                    className="group flex items-center px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <FileText className="h-4 w-4 mr-2 group-hover:animate-pulse" />
+                    Ver documento completo
+                    <ExternalLink className="h-3 w-3 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </a>
+                </div>
+              </div>
+              
+              {/* Sección de botones - Separada con línea */}
+              <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-900">
                   {law.status !== 'Finalizada' && law.blockchainStatus ? (
-                    <div className="flex items-center justify-center gap-4">
-                      <Button
-                        onClick={() => handleVoteClick(law.id, 'approve')}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-sm hover:shadow-md transition-all py-5"
-                      >
-                        <ThumbsUp className="h-5 w-5 mr-2" />
-                        Aprobar
-                      </Button>
-                      
-                      <Button
-                        onClick={() => handleVoteClick(law.id, 'reject')}
-                        className="flex-1 bg-red-600 hover:bg-red-700 text-white shadow-sm hover:shadow-md transition-all py-5"
-                      >
-                        <ThumbsDown className="h-5 w-5 mr-2" />
-                        Rechazar
-                      </Button>
-                      
-                      <Button
-                        onClick={() => handleVoteClick(law.id, 'abstain')}
-                        className="flex-1 bg-gray-500 hover:bg-gray-600 text-white shadow-sm hover:shadow-md transition-all py-5"
-                      >
-                        <Minus className="h-5 w-5 mr-2" />
-                        Abstención
-                      </Button>
-                    </div>
+                <div className="flex items-center justify-center gap-4">
+                  <Button
+                    onClick={() => handleVoteClick(law.id, 'approve')}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-sm hover:shadow-md transition-all py-5"
+                  >
+                    <ThumbsUp className="h-5 w-5 mr-2" />
+                    Aprobar
+                  </Button>
+                  
+                  <Button
+                    onClick={() => handleVoteClick(law.id, 'reject')}
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white shadow-sm hover:shadow-md transition-all py-5"
+                  >
+                    <ThumbsDown className="h-5 w-5 mr-2" />
+                    Rechazar
+                  </Button>
+                  
+                  <Button
+                    onClick={() => handleVoteClick(law.id, 'abstain')}
+                    className="flex-1 bg-gray-500 hover:bg-gray-600 text-white shadow-sm hover:shadow-md transition-all py-5"
+                  >
+                    <Minus className="h-5 w-5 mr-2" />
+                    Abstención
+                  </Button>
+                </div>
                   ) : (
                     <div className="text-center py-2">
                       <p className="text-gray-600 dark:text-gray-400">
@@ -815,53 +850,53 @@ export function PendingLaws() {
                       </p>
                     </div>
                   )}
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-
-        {/* Diálogo de confirmación */}
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <div className="flex flex-col items-center text-center pt-4">
-                {currentAction && getActionInfo(currentAction.action).icon}
-                <DialogTitle className="text-xl">
-                  {currentAction && getActionInfo(currentAction.action).title}
-                </DialogTitle>
-                <DialogDescription className="pt-2">
-                  {currentAction && getActionInfo(currentAction.action).description}
-                </DialogDescription>
               </div>
-            </DialogHeader>
-            
-            <div className="pt-4 pb-2">
-              <p className="text-sm text-center text-gray-500 dark:text-gray-400">
-                Esta acción quedará registrada y no se puede deshacer.
-              </p>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Diálogo de confirmación */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex flex-col items-center text-center pt-4">
+              {currentAction && getActionInfo(currentAction.action).icon}
+              <DialogTitle className="text-xl">
+                {currentAction && getActionInfo(currentAction.action).title}
+              </DialogTitle>
+              <DialogDescription className="pt-2">
+                {currentAction && getActionInfo(currentAction.action).description}
+              </DialogDescription>
             </div>
-            
-            <DialogFooter className="flex justify-between sm:justify-between gap-4">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setDialogOpen(false)}
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-              <Button 
-                type="button" 
-                onClick={handleConfirmVote}
-                className={`flex-1 ${currentAction ? getActionInfo(currentAction.action).color : ''}`}
-              >
-                <AlertCircle className="h-4 w-4 mr-2" />
-                {currentAction && getActionInfo(currentAction.action).confirmText}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </DialogHeader>
+          
+          <div className="pt-4 pb-2">
+            <p className="text-sm text-center text-gray-500 dark:text-gray-400">
+              Esta acción quedará registrada y no se puede deshacer.
+            </p>
+          </div>
+          
+          <DialogFooter className="flex justify-between sm:justify-between gap-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setDialogOpen(false)}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              type="button" 
+              onClick={handleConfirmVote}
+              className={`flex-1 ${currentAction ? getActionInfo(currentAction.action).color : ''}`}
+            >
+              <AlertCircle className="h-4 w-4 mr-2" />
+              {currentAction && getActionInfo(currentAction.action).confirmText}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </div>
     );
   }

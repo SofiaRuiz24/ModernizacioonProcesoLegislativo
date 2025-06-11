@@ -28,6 +28,12 @@ interface DashboardStats {
   totalLaws: number;
 }
 
+interface Legislador {
+  _id: string;
+  name: string;
+  party: string;
+}
+
 // Agregar constantes de estilos
 const STATUS_STYLES = {
   'Pendiente': 'bg-blue-100 text-blue-800 border border-blue-200',
@@ -61,12 +67,33 @@ export function Dashboard() {
   });
   const [pendingLaws, setPendingLaws] = useState<Law[]>([]);
   const [recentActivity, setRecentActivity] = useState<Law[]>([]);
+  const [legisladores, setLegisladores] = useState<Legislador[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Agregar función para obtener legisladores
+  const fetchLegisladores = async () => {
+    try {
+      const response = await fetch('http://localhost:5001/api/legislators');
+      if (response.ok) {
+        const data = await response.json();
+        setLegisladores(data);
+      }
+    } catch (error) {
+      console.error('Error fetching legisladores:', error);
+    }
+  };
+
   useEffect(() => {
+    fetchLegisladores();
     fetchDashboardData();
   }, []);
+
+  // Función para obtener el nombre del legislador
+  const getLegisladorName = (authorId: string) => {
+    const legislador = legisladores.find(l => l._id === authorId);
+    return legislador ? legislador.name : 'Legislador';
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -237,7 +264,7 @@ export function Dashboard() {
                   <div>
                     <h3 className="font-medium text-gray-900">{law.title}</h3>
                     <p className="text-sm text-gray-600 mt-1">
-                      Presentado por: <span className="font-medium">{law.author}</span>
+                      Presentado por: <span className="font-medium">{getLegisladorName(law.author)}</span>
                       <span className={`ml-2 px-2 py-0.5 rounded text-xs ${getPartyStyle(law.party)}`}>
                         {law.party}
                       </span>

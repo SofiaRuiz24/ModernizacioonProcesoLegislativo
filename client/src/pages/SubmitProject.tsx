@@ -25,8 +25,10 @@ declare global {
 }
 
 interface Legislador {
+  _id: string;
   address: string;
   name: string;
+  party: string;
 }
 
 interface ProyectoLey {
@@ -64,6 +66,7 @@ export function SubmitProject() {
   const [success, setSuccess] = useState<string | null>(null);
   const [legisladores, setLegisladores] = useState<Legislador[]>([]);
   const [selectedLegislador, setSelectedLegislador] = useState<string>('');
+  const [selectedLegisladorParty, setSelectedLegisladorParty] = useState<string>('');
   const [proyectosLey, setProyectosLey] = useState<ProyectoLey[]>([]);
   const [sesionActiva, setSesionActiva] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('Social');
@@ -147,7 +150,10 @@ export function SubmitProject() {
         const response = await fetch('http://localhost:5001/api/legislators');
         if (response.ok) {
           const data = await response.json();
+          console.log('Legisladores obtenidos:', data); // Debug log
           setLegisladores(data);
+        } else {
+          console.error('Error en la respuesta:', response.status);
         }
       } catch (error) {
         console.error('Error fetching legisladores:', error);
@@ -212,6 +218,16 @@ export function SubmitProject() {
     disabled: isUsingEditor
   });
 
+  const handleLegisladorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const legisladorId = e.target.value;
+    const legislador = legisladores.find(l => l._id === legisladorId);
+    
+    if (legislador) {
+      setSelectedLegislador(legisladorId);
+      setSelectedLegisladorParty(legislador.party);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!window.ethereum) {
@@ -224,6 +240,10 @@ export function SubmitProject() {
     }
     if (!selectedLegislador) {
       setError('Por favor, selecciona un legislador');
+      return;
+    }
+    if (!selectedLegisladorParty) {
+      setError('No se pudo determinar el partido del legislador');
       return;
     }
 
@@ -283,12 +303,19 @@ export function SubmitProject() {
           originalLawId: leyId.toString()
         });
 
+        // Log para debug
+        console.log('Enviando datos:', {
+          author: selectedLegislador,
+          party: selectedLegisladorParty,
+          legisladorSeleccionado: legisladores.find(l => l.address === selectedLegislador)
+        });
+
         formData.append('blockchainSessionId', sessionId.toString());
         formData.append('blockchainId', lawId.toString());
         formData.append('title', nuevaLey.titulo);
         formData.append('description', nuevaLey.descripcion);
         formData.append('author', selectedLegislador);
-        formData.append('party', 'Partido'); // TODO: Obtener del legislador seleccionado
+        formData.append('party', selectedLegisladorParty);
         formData.append('category', selectedCategory);
         formData.append('dateExpiry', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString());
 
@@ -323,7 +350,7 @@ export function SubmitProject() {
         console.log('Ley guardada en MongoDB:', savedLaw);
       } catch (error) {
         console.error('Error syncing with database:', error);
-        // No lanzamos el error para no interrumpir el flujo, pero lo registramos
+        throw error; // Propagar el error para manejarlo en el catch exterior
       }
 
       setSuccess('Proyecto de ley presentado exitosamente');
@@ -378,11 +405,12 @@ export function SubmitProject() {
                   <div className="space-y-2">
                     <Label htmlFor="legislador" className="text-sm font-medium">Legislador</Label>
                     <Select
+                      id="legislador"
                       value={selectedLegislador}
-                      onChange={(e) => setSelectedLegislador(e.target.value)}
+                      onChange={handleLegisladorChange}
                       options={legisladores.map(leg => ({
-                        key: leg.address,
-                        value: leg.address,
+                        key: leg._id,
+                        value: leg._id,
                         label: leg.name
                       }))}
                       className="w-full"

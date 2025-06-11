@@ -27,12 +27,32 @@ interface HistoryLaw {
   };
 }
 
+interface Legislador {
+  _id: string;
+  name: string;
+  party: string;
+}
+
 export function History() {
   const [laws, setLaws] = useState<HistoryLaw[]>([]);
+  const [legisladores, setLegisladores] = useState<Legislador[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchLegisladores = async () => {
+    try {
+      const response = await fetch('http://localhost:5001/api/legislators');
+      if (response.ok) {
+        const data = await response.json();
+        setLegisladores(data);
+      }
+    } catch (error) {
+      console.error('Error fetching legisladores:', error);
+    }
+  };
+
   useEffect(() => {
+    fetchLegisladores();
     fetchHistoryLaws();
   }, []);
 
@@ -52,6 +72,11 @@ export function History() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getLegisladorName = (authorId: string) => {
+    const legislador = legisladores.find(l => l._id === authorId);
+    return legislador ? legislador.name : 'Legislador';
   };
 
   const getStatusColor = (status: string) => {
@@ -121,12 +146,15 @@ export function History() {
                   <div className="space-y-4">
                     <div>
                       <p className="text-sm text-gray-500">
-                        Presentado por: {law.author}
+                        Presentado por: <span className="font-medium">{getLegisladorName(law.author)}</span>
                         <span className="ml-2 px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
                           {law.party}
                         </span>
                       </p>
-                      <p className="mt-2">{law.description}</p>
+                      <div 
+                        className="mt-2 prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: law.description }}
+                      />
                     </div>
                     
                     <div className="flex items-center justify-between pt-4 border-t">

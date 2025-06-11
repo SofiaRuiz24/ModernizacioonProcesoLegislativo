@@ -16,7 +16,9 @@ import {
   LogOut, 
   Settings,  
   Users, 
-  History 
+  History,
+  Menu,
+  X
 } from 'lucide-react';
 import { ThemeSwitcher } from './ui/theme-switcher';
 
@@ -36,6 +38,8 @@ export function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState({ username: '', email: '' });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const sidebarWidth = 256; // 64 * 4 = 256px = 16rem
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -113,8 +117,34 @@ export function DashboardLayout() {
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      <aside className="hidden md:flex w-64 flex-col fixed inset-y-0">
-        <div className="flex-1 flex flex-col min-h-0 border-r border-border bg-card">
+      {/* Botón de menú móvil */}
+      <button
+        className="md:hidden fixed top-4 z-50 p-2 rounded-md bg-background border border-border hover:bg-accent transition-all duration-300"
+        style={{ left: isSidebarOpen ? `${sidebarWidth + 16}px` : '16px' }}
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+      >
+        {isSidebarOpen ? (
+          <X className="h-6 w-6" />
+        ) : (
+          <Menu className="h-6 w-6" />
+        )}
+      </button>
+
+      {/* Overlay para cerrar el menú al hacer clic fuera */}
+      {isSidebarOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Barra lateral */}
+      <aside className={cn(
+        "fixed inset-y-0 left-0 z-40 w-64 flex-col border-r border-border bg-card transition-transform duration-300 ease-in-out",
+        "md:translate-x-0",
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        <div className="flex-1 flex flex-col min-h-0">
           <div className="flex items-center justify-between h-16 px-4 border-b border-border">
             <h1 className="text-lg font-semibold">Panel Administrativo</h1>
             <ThemeSwitcher />
@@ -128,7 +158,11 @@ export function DashboardLayout() {
                   </h2>
                   <div className="space-y-1">
                     {section.items.map((item, index) => (
-                      <Link key={index} to={item.href || '#'}>
+                      <Link 
+                        key={index} 
+                        to={item.href || '#'}
+                        onClick={() => setIsSidebarOpen(false)}
+                      >
                         <Button
                           variant={location.pathname === item.href ? 'default' : 'ghost'}
                           className={cn(
@@ -194,12 +228,11 @@ export function DashboardLayout() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto md:ml-64 p-8">
-        <div className="md:hidden flex items-center justify-between mb-4">
-          <h1 className="text-lg font-semibold">Panel Administrativo</h1>
-          <ThemeSwitcher />
+      {/* Contenido principal */}
+      <main className="flex-1 md:ml-64 min-h-screen">
+        <div className="container mx-auto px-4 py-8">
+          <Outlet />
         </div>
-        <Outlet />
       </main>
     </div>
   );
