@@ -594,4 +594,71 @@ router.get('/documents/:filename', (req, res) => {
   res.sendFile(filePath);
 });
 
+// Finalizar sesión y actualizar estados de leyes
+router.post('/finalize-session/:sessionId', async (req, res) => {
+  try {
+    const sessionId = Number(req.params.sessionId);
+    console.log('🔄 Finalizando sesión:', sessionId);
+
+    // 1. Finalizar sesión en blockchain
+    if (!process.env.PRIVATE_KEY) {
+      throw new Error('No hay una clave privada configurada para el backend');
+    }
+
+    try {
+      const tx = await contract.finalizarSesion(sessionId);
+      console.log('✅ Transacción enviada:', tx.hash);
+      await tx.wait();
+      console.log('✅ Sesión finalizada en blockchain');
+    } catch (error) {
+      console.error('❌ Error finalizando sesión en blockchain:', error);
+      throw new Error('Error al finalizar la sesión en blockchain: ' + error.message);
+    }
+
+    // 2. Obtener todas las leyes de la sesión
+    const laws = await Law.find({ blockchainSessionId: sessionId });
+    console.log(`📊 Procesando ${laws.length} leyes de la sesión`);
+
+    // 3. Actualizar estado de cada ley
+    for (const law of laws) {
+      const { favor, contra, abstenciones } = law.blockchainVotes;
+      const totalVotos = favor + contra + abstenciones;
+      
+      // Calcular resultado
+      let finalStatus;
+      if (totalVotos === 0) {
+        finalStatus = 'Pendiente';
+      } else if (favor > contra) {
+        finalStatus = 'Aprobada';
+      } else {
+        finalStatus = 'Rechazada';
+      }
+
+      // Actualizar ley
+      law.status = 'Finalizada';
+      law.finalStatus = finalStatus;
+      law.blockchainStatus = false;
+      
+      await law.save();
+      console.log(`✅ Ley ${law.blockchainId} actualizada:`, {
+        titulo: law.title,
+        votos: law.blockchainVotes,
+        estadoFinal: finalStatus
+      });
+    }
+
+    res.json({
+      message: 'Sesión finalizada correctamente',
+      leyesActualizadas: laws.length
+    });
+
+  } catch (error) {
+    console.error('❌ Error finalizando sesión:', error);
+    res.status(500).json({ 
+      message: 'Error al finalizar la sesión',
+      error: error.message 
+    });
+  }
+});
+
 export default router; 

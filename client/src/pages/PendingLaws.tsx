@@ -10,8 +10,10 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogDescription,
-  DialogFooter
+  DialogFooter,
+  DialogTrigger
 } from '@/components/ui/dialog';
+import { SessionTimer } from '@/components/SessionTimer';
 
 const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
 
@@ -77,6 +79,8 @@ export function PendingLaws() {
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const [userAddress, setUserAddress] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [finalizingSession, setFinalizingSession] = useState(false);
+  const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
 
   // Función para verificar si MetaMask está disponible
   const isMetaMaskAvailable = () => {
@@ -118,7 +122,15 @@ export function PendingLaws() {
         
         if (sesion.activa) {
           console.log(`Sesión activa encontrada: ${i}`);
+          console.log('Estado antes de setActiveSessionId:', {
+            activeSessionId,
+            activeSessionIdType: typeof activeSessionId
+          });
           setActiveSessionId(i);
+          console.log('Estado después de setActiveSessionId:', {
+            activeSessionId: i,
+            activeSessionIdType: typeof i
+          });
           return i;
         }
       }
@@ -465,6 +477,37 @@ export function PendingLaws() {
     }
   };
 
+  const handleFinalizeSession = async () => {
+    if (!activeSessionId) {
+      setError('No hay una sesión activa para finalizar');
+      return;
+    }
+
+    try {
+      setFinalizingSession(true);
+      setError(null);
+
+      // Obtener provider y signer
+      const provider = new ethers.BrowserProvider(window.ethereum as ethers.Eip1193Provider);
+      const signer = await provider.getSigner();
+      const contractInstance = new ethers.Contract(contractAddress, contractJson.abi, signer);
+
+      // Finalizar sesión
+      console.log('Finalizando sesión:', activeSessionId);
+      const tx = await contractInstance.finalizarSesion(BigInt(activeSessionId));
+      await tx.wait();
+      
+      setSuccess('Sesión finalizada correctamente');
+      await fetchLaws(activeSessionId);
+      setActiveSessionId(null);
+    } catch (error) {
+      console.error('Error finalizando sesión:', error);
+      setError('Error al finalizar la sesión');
+    } finally {
+      setFinalizingSession(false);
+    }
+  };
+
   // Función para formatear la fecha
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -513,6 +556,22 @@ export function PendingLaws() {
     }
   };
 
+  // Efecto para logging del estado
+  useEffect(() => {
+    if (pendingLaws.length > 0) {
+      console.log('Renderizando PendingLaws con:', {
+        activeSessionId,
+        activeSessionIdType: typeof activeSessionId,
+        pendingLawsLength: pendingLaws.length,
+        firstLaw: pendingLaws[0]
+      });
+      console.log('Evaluando renderizado del botón:', {
+        activeSessionId,
+        condition: activeSessionId !== null
+      });
+    }
+  }, [pendingLaws, activeSessionId]);
+
   if (loading) {
     return (
       <div className="container mx-auto py-8 px-4 flex items-center justify-center">
@@ -550,7 +609,71 @@ export function PendingLaws() {
     return (
       <div className="container mx-auto py-8 px-4">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold mb-6">Orden del Día</h1>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold">Orden del Día</h1>
+            <div className="flex items-center gap-4">
+              {activeSessionId !== null && (
+                <>
+                  <SessionTimer />
+                  <Dialog open={finalizeDialogOpen} onOpenChange={setFinalizeDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        variant="destructive"
+                        disabled={finalizingSession}
+                        className="flex items-center gap-2"
+                      >
+                        {finalizingSession ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Finalizando...
+                          </>
+                        ) : (
+                          <>
+                            <Clock className="h-4 w-4" />
+                            Finalizar Sesión
+                          </>
+                        )}
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>¿Finalizar la sesión actual?</DialogTitle>
+                        <DialogDescription>
+                          Esta acción:
+                          <ul className="list-disc list-inside mt-2">
+                            <li>Finalizará la sesión en blockchain</li>
+                            <li>Actualizará el estado de todas las leyes según sus votos</li>
+                            <li>No se podrán registrar más votos en esta sesión</li>
+                          </ul>
+                          ¿Está seguro que desea continuar?
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter className="flex justify-between sm:justify-between gap-4">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setFinalizeDialogOpen(false)}
+                          className="flex-1"
+                        >
+                          Cancelar
+                        </Button>
+                        <Button 
+                          type="button" 
+                          onClick={() => {
+                            handleFinalizeSession();
+                            setFinalizeDialogOpen(false);
+                          }}
+                          className="flex-1 bg-red-600 hover:bg-red-700"
+                        >
+                          Finalizar Sesión
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </>
+              )}
+            </div>
+          </div>
           
           <div className="space-y-8">
             {pendingLaws.map((law) => (

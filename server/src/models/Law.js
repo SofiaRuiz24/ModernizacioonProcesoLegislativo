@@ -34,6 +34,12 @@ const lawSchema = new mongoose.Schema({
   category: String,
   status: {
     type: String,
+    enum: ['Pendiente', 'En debate', 'Aprobada', 'Rechazada', 'Finalizada'],
+    default: 'Pendiente'
+  },
+  finalStatus: {
+    type: String,
+    enum: ['Aprobada', 'Rechazada', 'Pendiente'],
     default: 'Pendiente'
   },
   blockchainStatus: {
