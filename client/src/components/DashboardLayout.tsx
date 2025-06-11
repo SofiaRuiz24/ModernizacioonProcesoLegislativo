@@ -27,17 +27,19 @@ interface NavItem {
   href?: string;
   icon?: React.ReactNode;
   variant?: 'default' | 'ghost';
+  roles?: string[]; // Roles que pueden ver este item
 }
 
 interface NavSection {
   title: string;
   items: NavItem[];
+  roles?: string[]; // Roles que pueden ver esta sección
 }
 
 export function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [user, setUser] = useState({ username: '', email: '' });
+  const [user, setUser] = useState({ username: '', email: '', role: '' });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const sidebarWidth = 256; // 64 * 4 = 256px = 16rem
 
@@ -54,6 +56,7 @@ export function DashboardLayout() {
           setUser({
             username: data.user.username || '',
             email: data.user.email || '',
+            role: data.user.role || ''
           });
         }
       } catch (e) { /* ignore error */ }
@@ -80,7 +83,8 @@ export function DashboardLayout() {
           title: 'Presentar Proyecto',
           icon: <FileText className="mr-2 h-4 w-4" />,
           variant: 'ghost',
-          href: '/dashboard/submit-law'
+          href: '/dashboard/submit-law',
+          roles: ['admin'] // Solo admin puede presentar proyectos
         },
         {
           title: 'En Sesión',
@@ -98,6 +102,7 @@ export function DashboardLayout() {
     },
     {
       title: 'Administración',
+      roles: ['admin'], // Solo admin puede ver esta sección
       items: [
         {
           title: 'Legisladores',
@@ -114,6 +119,12 @@ export function DashboardLayout() {
       ]
     }
   ];
+
+  // Función para verificar si un usuario puede ver un item o sección
+  const canView = (roles?: string[]) => {
+    if (!roles) return true; // Si no hay roles especificados, todos pueden ver
+    return roles.includes(user.role);
+  };
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -152,33 +163,37 @@ export function DashboardLayout() {
           <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
             <div className="flex-1 px-3 space-y-1">
               {navigation.map((section, index) => (
-                <div key={index} className="py-2">
-                  <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
-                    {section.title}
-                  </h2>
-                  <div className="space-y-1">
-                    {section.items.map((item, index) => (
-                      <Link 
-                        key={index} 
-                        to={item.href || '#'}
-                        onClick={() => setIsSidebarOpen(false)}
-                      >
-                        <Button
-                          variant={location.pathname === item.href ? 'default' : 'ghost'}
-                          className={cn(
-                            'w-full justify-start',
-                            location.pathname === item.href
-                              ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground'
-                              : 'hover:bg-muted'
-                          )}
-                        >
-                          {item.icon}
-                          {item.title}
-                        </Button>
-                      </Link>
-                    ))}
+                canView(section.roles) && (
+                  <div key={index} className="py-2">
+                    <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
+                      {section.title}
+                    </h2>
+                    <div className="space-y-1">
+                      {section.items.map((item, index) => (
+                        canView(item.roles) && (
+                          <Link 
+                            key={index} 
+                            to={item.href || '#'}
+                            onClick={() => setIsSidebarOpen(false)}
+                          >
+                            <Button
+                              variant={location.pathname === item.href ? 'default' : 'ghost'}
+                              className={cn(
+                                'w-full justify-start',
+                                location.pathname === item.href
+                                  ? 'bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground'
+                                  : 'hover:bg-muted'
+                              )}
+                            >
+                              {item.icon}
+                              {item.title}
+                            </Button>
+                          </Link>
+                        )
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )
               ))}
             </div>
           </div>
