@@ -36,26 +36,26 @@ interface Legislador {
 
 // Agregar constantes de estilos
 const STATUS_STYLES = {
-  'Pendiente': 'bg-blue-100 text-blue-800 border border-blue-200',
-  'Aprobada': 'bg-emerald-100 text-emerald-800 border border-emerald-200',
-  'Rechazada': 'bg-rose-100 text-rose-800 border border-rose-200',
-  'En debate': 'bg-amber-100 text-amber-800 border border-amber-200'
+  'Pendiente': 'bg-blue-100 text-blue-800 border border-blue-200 dark:bg-blue-900 dark:text-blue-100 dark:border-blue-800',
+  'Aprobada': 'bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-900 dark:text-emerald-100 dark:border-emerald-800',
+  'Rechazada': 'bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-900 dark:text-rose-100 dark:border-rose-800',
+  'En debate': 'bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-900 dark:text-amber-100 dark:border-amber-800'
 } as const;
 
 const PARTY_STYLES = {
-  'Partido A': 'bg-purple-100 text-purple-800 border border-purple-200',
-  'Partido B': 'bg-indigo-100 text-indigo-800 border border-indigo-200',
-  'Partido C': 'bg-cyan-100 text-cyan-800 border border-cyan-200',
-  'default': 'bg-gray-100 text-gray-800 border border-gray-200'
+  'Partido A': 'bg-purple-100 text-purple-800 border border-purple-200 dark:bg-purple-900 dark:text-purple-100 dark:border-purple-800',
+  'Partido B': 'bg-indigo-100 text-indigo-800 border border-indigo-200 dark:bg-indigo-900 dark:text-indigo-100 dark:border-indigo-800',
+  'Partido C': 'bg-cyan-100 text-cyan-800 border border-cyan-200 dark:bg-cyan-900 dark:text-cyan-100 dark:border-cyan-800',
+  'default': 'bg-gray-100 text-gray-800 border border-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700'
 } as const;
 
 const CATEGORY_STYLES = {
-  'Educación': 'bg-sky-100 text-sky-800',
-  'Salud': 'bg-pink-100 text-pink-800',
-  'Economía': 'bg-orange-100 text-orange-800',
-  'Seguridad': 'bg-red-100 text-red-800',
-  'Ambiente': 'bg-green-100 text-green-800',
-  'default': 'bg-gray-100 text-gray-800'
+  'Educación': 'bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-100',
+  'Salud': 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-100',
+  'Economía': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100',
+  'Seguridad': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
+  'Ambiente': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
+  'default': 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100'
 } as const;
 
 export function Dashboard() {
@@ -178,8 +178,8 @@ export function Dashboard() {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-md p-4">
-        <p className="text-red-600">{error}</p>
+      <div className="bg-red-50 border border-red-200 rounded-md p-4 dark:bg-red-950 dark:border-red-900">
+        <p className="text-red-600 dark:text-red-200">{error}</p>
       </div>
     );
   }
@@ -188,61 +188,61 @@ export function Dashboard() {
     <div className="grid gap-6">
       {/* Estadísticas */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-md transition-shadow bg-card border border-border text-foreground">
           <CardContent className="p-6 flex flex-col h-full">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-medium text-gray-700">Leyes Pendientes</span>
-              <Clock className="h-4 w-4 text-blue-600" />
+              <span className="text-sm font-medium text-muted-foreground">Leyes Pendientes</span>
+              <Clock className="h-4 w-4 text-blue-600 dark:text-blue-300" />
             </div>
             <div className="flex-1 flex items-end">
               <div>
-                <span className="text-3xl font-bold text-blue-700">{stats.pendingLaws}</span>
-                <span className="text-sm text-gray-500 ml-2">leyes</span>
+                <span className="text-3xl font-bold text-blue-700 dark:text-blue-200">{stats.pendingLaws}</span>
+                <span className="text-sm text-muted-foreground ml-2">leyes</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-md transition-shadow bg-card border border-border text-foreground">
           <CardContent className="p-6 flex flex-col h-full">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-medium text-gray-700">Leyes Aprobadas</span>
-              <CheckCircle className="h-4 w-4 text-emerald-600" />
+              <span className="text-sm font-medium text-muted-foreground">Leyes Aprobadas</span>
+              <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-300" />
             </div>
             <div className="flex-1 flex items-end">
               <div>
-                <span className="text-3xl font-bold text-emerald-700">{stats.approvedLaws}</span>
-                <span className="text-sm text-gray-500 ml-2">leyes</span>
+                <span className="text-3xl font-bold text-emerald-700 dark:text-emerald-200">{stats.approvedLaws}</span>
+                <span className="text-sm text-muted-foreground ml-2">leyes</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-md transition-shadow bg-card border border-border text-foreground">
           <CardContent className="p-6 flex flex-col h-full">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-medium text-gray-700">Leyes Rechazadas</span>
-              <XCircle className="h-4 w-4 text-rose-600" />
+              <span className="text-sm font-medium text-muted-foreground">Leyes Rechazadas</span>
+              <XCircle className="h-4 w-4 text-rose-600 dark:text-rose-300" />
             </div>
             <div className="flex-1 flex items-end">
               <div>
-                <span className="text-3xl font-bold text-rose-700">{stats.rejectedLaws}</span>
-                <span className="text-sm text-gray-500 ml-2">leyes</span>
+                <span className="text-3xl font-bold text-rose-700 dark:text-rose-200">{stats.rejectedLaws}</span>
+                <span className="text-sm text-muted-foreground ml-2">leyes</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-md transition-shadow bg-card border border-border text-foreground">
           <CardContent className="p-6 flex flex-col h-full">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-sm font-medium text-gray-700">Total de Leyes</span>
-              <FileText className="h-4 w-4 text-gray-600" />
+              <span className="text-sm font-medium text-muted-foreground">Total de Leyes</span>
+              <FileText className="h-4 w-4 text-gray-600 dark:text-gray-300" />
             </div>
             <div className="flex-1 flex items-end">
               <div>
-                <span className="text-3xl font-bold text-gray-700">{stats.totalLaws}</span>
-                <span className="text-sm text-gray-500 ml-2">leyes</span>
+                <span className="text-3xl font-bold text-gray-700 dark:text-gray-100">{stats.totalLaws}</span>
+                <span className="text-sm text-muted-foreground ml-2">leyes</span>
               </div>
             </div>
           </CardContent>
@@ -250,34 +250,34 @@ export function Dashboard() {
       </div>
 
       {/* Orden del Día */}
-      <Card className="hover:shadow-md transition-shadow">
+      <Card className="hover:shadow-md transition-shadow bg-card border border-border text-foreground">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-gray-800">Orden del Día</CardTitle>
+          <CardTitle className="text-xl font-semibold text-foreground">Orden del Día</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {pendingLaws.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">No hay leyes en el orden del día</p>
+              <p className="text-muted-foreground text-center py-4">No hay leyes en el orden del día</p>
             ) : (
               pendingLaws.map((law) => (
-                <div key={law._id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                <div key={law._id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted transition-colors dark:border-zinc-700">
                   <div>
-                    <h3 className="font-medium text-gray-900">{law.title}</h3>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Presentado por: <span className="font-medium">{getLegisladorName(law.author)}</span>
+                    <h3 className="font-medium text-foreground">{law.title}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Presentado por: <span className="font-medium text-foreground">{getLegisladorName(law.author)}</span>
                       <span className={`ml-2 px-2 py-0.5 rounded text-xs ${getPartyStyle(law.party)}`}>
                         {law.party}
                       </span>
                     </p>
                     <p className="text-sm mt-1">
-                      <span className="text-gray-600">Categoría: </span>
+                      <span className="text-muted-foreground">Categoría: </span>
                       <span className={`px-2 py-0.5 rounded text-xs ${getCategoryStyle(law.category)}`}>
                         {law.category}
                       </span>
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-gray-600">{formatDate(law.datePresented)}</p>
+                    <p className="text-sm text-muted-foreground">{formatDate(law.datePresented)}</p>
                     <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${STATUS_STYLES['Pendiente']}`}>
                       Pendiente
                     </span>
@@ -290,39 +290,39 @@ export function Dashboard() {
       </Card>
 
       {/* Actividad Reciente */}
-      <Card className="hover:shadow-md transition-shadow">
+      <Card className="hover:shadow-md transition-shadow bg-card border border-border text-foreground">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-gray-800">Actividad Reciente</CardTitle>
+          <CardTitle className="text-xl font-semibold text-foreground">Actividad Reciente</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {recentActivity.length === 0 ? (
-              <p className="text-gray-500 text-center py-4">No hay actividad reciente</p>
+              <p className="text-muted-foreground text-center py-4">No hay actividad reciente</p>
             ) : (
               recentActivity.map((law) => (
-                <div key={law._id} className="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                <div key={law._id} className="flex items-center space-x-4 p-3 rounded-lg hover:bg-muted transition-colors">
                   <div className="flex-1">
                     <p className="text-sm">
-                      <span className="font-medium text-gray-900">Ley </span>
-                      <span className={`font-medium ${law.finalStatus === 'Aprobada' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                      <span className="font-medium text-foreground">Ley </span>
+                      <span className={`font-medium ${law.finalStatus === 'Aprobada' ? 'text-emerald-700 dark:text-emerald-200' : 'text-rose-700 dark:text-rose-200'}`}>
                         {law.finalStatus.toLowerCase()}
                       </span>
-                      <span className="text-gray-900">: {law.title}</span>
+                      <span className="text-foreground">: {law.title}</span>
                     </p>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       <span className="font-medium">Votos: </span>
-                      <span className="text-emerald-600">{law.blockchainVotes.favor} a favor</span>
+                      <span className="text-emerald-600 dark:text-emerald-300">{law.blockchainVotes.favor} a favor</span>
                       <span className="mx-1">•</span>
-                      <span className="text-rose-600">{law.blockchainVotes.contra} en contra</span>
+                      <span className="text-rose-600 dark:text-rose-300">{law.blockchainVotes.contra} en contra</span>
                       {law.blockchainVotes.abstenciones > 0 && (
                         <>
                           <span className="mx-1">•</span>
-                          <span className="text-amber-600">{law.blockchainVotes.abstenciones} abstenciones</span>
+                          <span className="text-amber-600 dark:text-amber-300">{law.blockchainVotes.abstenciones} abstenciones</span>
                         </>
                       )}
                     </p>
                   </div>
-                  <span className="text-xs text-gray-500 whitespace-nowrap">{getTimeAgo(law.datePresented)}</span>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">{getTimeAgo(law.datePresented)}</span>
                 </div>
               ))
             )}
