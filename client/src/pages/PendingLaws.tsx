@@ -76,6 +76,7 @@ export function PendingLaws() {
   const [error, setError] = useState<string | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const [userAddress, setUserAddress] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   // Función para verificar si MetaMask está disponible
   const isMetaMaskAvailable = () => {
@@ -275,6 +276,14 @@ export function PendingLaws() {
   }, []);
 
   const handleVoteClick = (id: number, action: 'approve' | 'reject' | 'abstain') => {
+    console.log('handleVoteClick - Valores iniciales:', {
+      id,
+      action,
+      userAddress,
+      activeSessionId,
+      currentAction: currentAction
+    });
+
     if (!userAddress) {
       setError('Por favor, conecta tu wallet para votar');
       return;
@@ -284,14 +293,84 @@ export function PendingLaws() {
   };
 
   const handleConfirmVote = async () => {
-    if (!currentAction || !userAddress || !activeSessionId || !isMetaMaskAvailable()) return;
+    console.log('handleConfirmVote - Valores al iniciar:', {
+      currentAction,
+      userAddress,
+      activeSessionId,
+      activeSessionIdType: typeof activeSessionId,
+      activeSessionIdValue: activeSessionId,
+      isMetaMaskAvailable: isMetaMaskAvailable()
+    });
+
+    // Verificar que activeSessionId sea un número válido
+    if (typeof activeSessionId !== 'number' || isNaN(activeSessionId)) {
+      console.error('activeSessionId inválido:', {
+        value: activeSessionId,
+        type: typeof activeSessionId
+      });
+      setError('ID de sesión inválido');
+      setDialogOpen(false);
+      return;
+    }
+
+    if (!currentAction || !userAddress) {
+      console.error('Datos faltantes:', {
+        currentAction: currentAction ? 'presente' : 'faltante',
+        userAddress: userAddress ? 'presente' : 'faltante'
+      });
+      setError('Faltan datos necesarios para votar');
+      setDialogOpen(false);
+      return;
+    }
 
     try {
+      setLoading(true);
+      setError(null);
+
+      // 1. Obtener provider y signer
       const provider = new ethers.BrowserProvider(window.ethereum as ethers.Eip1193Provider);
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(contractAddress, contractJson.abi, signer);
 
-      // Convertir acción a EstadoVoto
+      // 2. Verificar si la cuenta actual es legislador
+      const esLegislador = await contract.legisladores(userAddress);
+      console.log('Estado de legislador:', {
+        cuenta: userAddress,
+        esLegislador,
+        cuentaActual: await signer.getAddress()
+      });
+
+      if (!esLegislador) {
+        throw new Error('Tu cuenta no está registrada como legislador');
+      }
+
+      // 3. Verificar que la sesión está activa
+      const sesion = await contract.sesiones(BigInt(activeSessionId));
+      console.log('Estado de la sesión:', {
+        id: sesion.id.toString(),
+        activa: sesion.activa,
+        sesionId: activeSessionId,
+        sesionIdType: typeof activeSessionId
+      });
+
+      if (!sesion.activa) {
+        throw new Error('La sesión ya no está activa');
+      }
+
+      // 4. Verificar que la ley existe y está activa
+      const ley = await contract.obtenerLey(activeSessionId, currentAction.id);
+      console.log('Estado de la ley:', {
+        id: ley.id.toString(),
+        activa: ley.activa,
+        leyId: currentAction.id,
+        sessionId: activeSessionId
+      });
+
+      if (!ley.activa) {
+        throw new Error('La ley ya no está activa');
+      }
+
+      // 5. Convertir acción a EstadoVoto
       let estadoVoto: EstadoVoto;
       switch (currentAction.action) {
         case 'approve':
@@ -307,20 +386,58 @@ export function PendingLaws() {
           throw new Error('Acción de voto inválida');
       }
 
-      // Registrar voto en el contrato
+      // 6. Enviar la transacción
+      console.log('Enviando voto:', {
+        sessionId: activeSessionId,
+        sessionIdType: typeof activeSessionId,
+        lawId: currentAction.id,
+        action: currentAction.action,
+        estadoVoto: estadoVoto,
+        cuenta: await signer.getAddress()
+      });
+
       const tx = await contract.registrarVoto(
         activeSessionId,
         currentAction.id,
         estadoVoto
       );
-      await tx.wait();
 
-      // Actualizar la lista de leyes
-      await fetchLaws(activeSessionId);
+      console.log('Transacción enviada:', tx.hash);
+      setSuccess('Transacción enviada. Esperando confirmación...');
       setDialogOpen(false);
+
+      // 7. Esperar confirmación
+      const receipt = await tx.wait();
+      console.log('Transacción confirmada:', receipt);
+
+      // 8. Actualizar la lista de leyes
+      await fetchLaws(activeSessionId);
+      setSuccess('Voto registrado exitosamente');
+
     } catch (error) {
-      console.error('Error registrando voto:', error);
-      setError('Error al registrar el voto');
+      console.error('Error al votar:', error);
+      let errorMessage = 'Error al registrar el voto';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Solo los legisladores pueden realizar esta accion')) {
+          errorMessage = 'Tu cuenta no está registrada como legislador';
+        } else if (error.message.includes('Sesion no esta activa')) {
+          errorMessage = 'La sesión ya no está activa';
+        } else if (error.message.includes('La ley no esta activa')) {
+          errorMessage = 'La ley ya no está activa';
+        } else if (error.message.includes('Estado de voto invalido')) {
+          errorMessage = 'Estado de voto inválido';
+        } else if (error.message.includes('user rejected transaction')) {
+          errorMessage = 'Transacción rechazada por el usuario';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setError(errorMessage);
+      setDialogOpen(false);
+    } finally {
+      setLoading(false);
     }
   };
 
